@@ -71,6 +71,7 @@ void forward_udp_packets(int local_socket) {
             perror("Receive failed");
             continue;
         }
+        update_rtp_recv_len(&stats, recv_len);
 
         // Check if the received packet is a valid RTP packet
         bool valid = is_valid_rtp_packet((const uint8_t *)buffer, recv_len);
@@ -82,6 +83,12 @@ void forward_udp_packets(int local_socket) {
             if (sent_len < 0) {
                 perror("Send failed");
                 break;
+            }
+
+            if(1 == GET_RTP_MARKER(buffer)){
+                update_rtp_head_stats(&stats);
+            }else{
+                update_rtp_body_stats(&stats); 
             }
         } else {
             printf("Invalid RTP packet received. Total invalid count: %u\n", stats.invalid_count);
