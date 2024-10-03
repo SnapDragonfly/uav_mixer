@@ -2,14 +2,14 @@
 CC = gcc
 
 # Define compiler options
-CFLAGS = -Wall -Iinclude
+CFLAGS = -Wall -Iinclude -pthread
 
 # Define source directory and object directory
 SRCDIR = src
 OBJDIR = obj
 
 # Define the target executable name
-TARGET = helloworld
+TARGET = uav_mixer
 
 # Define source files and object files
 SRCS = $(wildcard $(SRCDIR)/*.c)
@@ -20,7 +20,7 @@ all: $(TARGET)
 
 # Link the object files to create the executable
 $(TARGET): $(OBJS)
-	$(CC) $(OBJS) -o $(TARGET)
+	$(CC) $(OBJS) -o $(TARGET) -lpthread
 
 # Compile source files into object files
 $(OBJDIR)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
