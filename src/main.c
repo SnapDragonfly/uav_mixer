@@ -71,6 +71,7 @@ int main() {
     pthread_join(uart_thread, NULL);
 
     close(local_socket);
+    close(uart_fd);
     printf("UDP Forwarder and UART communication stopped.\n");
     return 0;
 }
