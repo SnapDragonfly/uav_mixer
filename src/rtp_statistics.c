@@ -3,26 +3,43 @@
 #include <limits.h>
 #include <float.h>
 #include <stdint.h>
+#include <math.h>
 
 #include "rtp_statistics.h"
 
 void print_rtp_packet_histogram(const rtp_stats_t *stats) {
     uint32_t rtp_scale_factor = 1;
     uint32_t last_bucket = 0;
+    uint32_t total_packets = 0;    // Total number of packets
+    double sum_packets = 0;         // Sum of packet counts (for calculating average)
+    double sum_packets_square = 0;  // Sum of packet counts squared (for calculating RMS)
+
+    // Calculate the maximum occurrence (for scaling) and the last non-zero bucket
     for (int k = 0; k <= MAX_RTP_PACKETS; k++) {
         if (stats->packet_distribution[k] > rtp_scale_factor) {
             rtp_scale_factor = stats->packet_distribution[k];
         }
-        if(stats->packet_distribution[k] > 0){
+        if (stats->packet_distribution[k] > 0) {
             last_bucket = k;
         }
+
+        // Calculate total packets, sum of packets, and sum of packets squared
+        total_packets += stats->packet_distribution[k];
+        sum_packets += k * stats->packet_distribution[k];
+        sum_packets_square += (k * k) * stats->packet_distribution[k];
     }
-    if( rtp_scale_factor > SCALE_FACTOR) {
-        rtp_scale_factor = rtp_scale_factor/SCALE_FACTOR;
-    }else{
+
+    // Calculate average and RMS
+    double mean_packets = total_packets > 0 ? sum_packets / total_packets : 0;
+    double rms_packets = total_packets > 0 ? sqrt(sum_packets_square / total_packets) : 0;
+
+    if (rtp_scale_factor > SCALE_FACTOR) {
+        rtp_scale_factor = rtp_scale_factor / SCALE_FACTOR;
+    } else {
         rtp_scale_factor = 1;
     }
 
+    // Print RTP packet histogram
     printf("RTP Packet Count Histogram(scale %d):\n", rtp_scale_factor);
     
     for (int i = 0; i <= last_bucket; i++) {
@@ -33,25 +50,46 @@ void print_rtp_packet_histogram(const rtp_stats_t *stats) {
         }
         printf("\n");
     }
+
+    // Print average and RMS
+    printf("Average RTP packets: %.2f\n", mean_packets);
+    printf("    RMS RTP packets: %.2f\n", rms_packets);
 }
 
+// Calculate the standard deviation and average for the FPS histogram
 void print_fps_histogram(const rtp_stats_t *stats) {
     uint32_t fps_scale_factor = 1;
     uint32_t last_bucket = 0;
+    uint32_t total_frames = 0;  // Total number of frames
+    double sum_fps = 0;         // Sum of FPS (for calculating the average)
+    double sum_fps_square = 0;  // Sum of FPS squared (for calculating RMS)
+
+    // Calculate the maximum occurrence (used to scale the number of stars) and the last non-zero bucket
     for (int k = 0; k <= MAX_FRAME_PER_SECOND; k++) {
         if (stats->frame_distribution[k] > fps_scale_factor) {
             fps_scale_factor = stats->frame_distribution[k];
         }
-        if(stats->frame_distribution[k] > 0){
+        if (stats->frame_distribution[k] > 0) {
             last_bucket = k;
         }
+
+        // Calculate the total number of frames, the sum of FPS, and the sum of FPS squared
+        total_frames += stats->frame_distribution[k];
+        sum_fps += k * stats->frame_distribution[k];
+        sum_fps_square += (k * k) * stats->frame_distribution[k];
     }
-    if( fps_scale_factor > SCALE_FACTOR) {
-        fps_scale_factor = fps_scale_factor/SCALE_FACTOR;
-    }else{
+
+    // Calculate the average and RMS
+    double mean_fps = total_frames > 0 ? sum_fps / total_frames : 0;
+    double rms_fps = total_frames > 0 ? sqrt(sum_fps_square / total_frames) : 0;
+
+    if (fps_scale_factor > SCALE_FACTOR) {
+        fps_scale_factor = fps_scale_factor / SCALE_FACTOR;
+    } else {
         fps_scale_factor = 1;
     }
 
+    // Print FPS histogram
     printf("Frame Per Second Histogram(scale %d):\n", fps_scale_factor);
     
     for (int i = 0; i <= last_bucket; i++) {
@@ -62,8 +100,11 @@ void print_fps_histogram(const rtp_stats_t *stats) {
         }
         printf("\n");
     }
-}
 
+    // Print the average and RMS
+    printf("Average FPS: %.2f\n", mean_fps);
+    printf("    RMS FPS: %.2f\n", rms_fps);
+}
 
 void init_rtp_stats(rtp_stats_t *stats) {
     stats->valid_count   = 0;
@@ -219,8 +260,8 @@ void print_rtp_stats(const rtp_stats_t *stats) {
     printf("Min frame delivery time: %e\n", stats->rtp_min_delivery_per_frame);
     printf("     Max frame gap time: %e\n", stats->rtp_max_gap_per_frame);
     printf("     Min frame gap time: %e\n", stats->rtp_min_gap_per_frame);
-    printf("Max frame interval time: %e  -  %.02e\n", stats->frame_max_interval, 1000000/stats->frame_max_interval);
-    printf("Min frame interval time: %e  -  %.02e\n", stats->frame_min_interval, 1000000/stats->frame_min_interval);
+    printf("Max frame interval time: %e  -  %.02e Hz\n", stats->frame_max_interval, 1000000/stats->frame_max_interval);
+    printf("Min frame interval time: %e  -  %.02e Hz\n", stats->frame_min_interval, 1000000/stats->frame_min_interval);
     printf("--------------------------\n");
     printf("    Total max RTP packets: %u\n", stats->rtp_max_packets_per_frame);
     printf("    Total min RTP packets: %u\n", stats->rtp_min_packets_per_frame);

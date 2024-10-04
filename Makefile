@@ -20,7 +20,7 @@ all: $(TARGET)
 
 # Link the object files to create the executable
 $(TARGET): $(OBJS)
-	$(CC) $(OBJS) -o $(TARGET) -lpthread
+	$(CC) $(OBJS) -o $(TARGET) -lpthread -lm
 
 # Compile source files into object files
 $(OBJDIR)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
