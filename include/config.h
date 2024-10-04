@@ -1,4 +1,5 @@
-
+#ifndef UAV_MIXER_CONFIG_H
+#define UAV_MIXER_CONFIG_H
 
 // UDP forward default configuration
 #define LOCAL_PORT              5400             //RTP Source
@@ -14,3 +15,5 @@
 #define MAX_RTP_PACKETS         100              //uav_mixer settings
 #define MAX_FRAME_PER_SECOND    120              //uav_mixer settings
 #define SCALE_FACTOR            50               //uav_mixer settings
+
+#endif /* UAV_MIXER_CONFIG_H */
