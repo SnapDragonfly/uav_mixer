@@ -27,4 +27,10 @@
 
 #define MAX_TIME_SYNC_SAMPLES    10                 //uav_mixer settings
 
+// UART IMU default configuration
+#define UART_DEVICE              "/dev/ttyUSB0"     //device
+#define UART_BAUDRATE            921600             //uav_mixer settings
+#define UART_BUF_LEN             1024               //uav_mixer settings
+#define UART_BUF_SLEEP_US        5000               //uav_mixer settings
+
 #endif /* UAV_MIXER_CONFIG_H */
