@@ -45,6 +45,10 @@ typedef struct {
     double   rtp_min_gap_per_frame;
     double   frame_max_interval;
     double   frame_min_interval;
+
+    double   frame_estimate_interval;
+    uint32_t frame_data_delay_count;
+    uint32_t frame_data_ontime_count;
 } rtp_stats_t;
 
 // Function declarations

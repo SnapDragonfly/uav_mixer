@@ -139,6 +139,11 @@ void init_rtp_stats(rtp_stats_t *stats) {
 
     stats->frame_max_interval           = 0;
     stats->frame_min_interval           = DBL_MAX;
+
+    stats->frame_estimate_interval      = 1000000/RTP_FPS_RATE;
+
+    stats->frame_data_delay_count       = 0;
+    stats->frame_data_ontime_count      = 0;
 }
 
 bool is_valid_rtp_packet(const uint8_t *data, size_t length) {
@@ -190,6 +195,12 @@ void update_rtp_head_stats(rtp_stats_t *stats){
 
         //printf("delivery_diff: %e  gap_diff: %e\n", delivery_diff, gap_diff);
         //printf("interval_diff: %e  -  %.02e Hz\n", interval_diff, 1000000/interval_diff);
+        if (interval_diff > stats->frame_estimate_interval){
+            stats->frame_data_delay_count++;
+            //printf("frame data severely delayed: %e > %e\n", interval_diff, stats->frame_estimate_interval);
+        } else {
+            stats->frame_data_ontime_count++;
+        }
 
         if (delivery_diff > stats->rtp_max_delivery_per_frame){
             stats->rtp_max_delivery_per_frame = delivery_diff;
@@ -262,6 +273,10 @@ void print_rtp_stats(const rtp_stats_t *stats) {
     printf("     Min frame gap time: %e\n", stats->rtp_min_gap_per_frame);
     printf("Max frame interval time: %e  -  %.02e Hz\n", stats->frame_max_interval, 1000000/stats->frame_max_interval);
     printf("Min frame interval time: %e  -  %.02e Hz\n", stats->frame_min_interval, 1000000/stats->frame_min_interval);
+    printf("    Frame interval time: %e  -  %.02e Hz\n", stats->frame_estimate_interval, 1000000/stats->frame_estimate_interval);
+    printf("    Frame delayed count: %u\n", stats->frame_data_delay_count);
+    printf("    Frame on-time count: %u\n", stats->frame_data_ontime_count);
+    printf("          Frame on-time: %u%%\n", 100*stats->frame_data_ontime_count/(stats->frame_data_ontime_count+stats->frame_data_delay_count));
     printf("--------------------------\n");
     printf("    Total max RTP packets: %u\n", stats->rtp_max_packets_per_frame);
     printf("    Total min RTP packets: %u\n", stats->rtp_min_packets_per_frame);
