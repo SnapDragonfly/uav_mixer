@@ -236,7 +236,7 @@ void update_rtp_head_stats(rtp_stats_t *stats){
 
         if(stats->rtp_packets_count_per_frame > MAX_RTP_PACKETS){
             stats->packet_distribution_overflow++;
-            printf("packets per frame statistic overflow: %u > %u\n", stats->rtp_packets_count_per_frame, MAX_RTP_PACKETS);
+            printf("\033[1;31mpackets per frame statistic overflow: %u > %u\033[0m\n", stats->rtp_packets_count_per_frame, MAX_RTP_PACKETS);
         }else{
             stats->packet_distribution[stats->rtp_packets_count_per_frame]++;
         }

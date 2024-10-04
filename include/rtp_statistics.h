@@ -21,8 +21,34 @@ typedef struct {
     uint32_t ssrc;       // SSRC identifier (32 bits)
 } rtp_header_t;
 
+/*
+  0                   1                   2                   3
+  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |V=2|P|X|  CC   |M|     PT      |       sequence number         |
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |                           timestamp                           |
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |           synchronization source (SSRC) identifier            |
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |            contributing source (CSRC) identifiers (optional)  |
+ |                             ....                              |
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |                         Payload Data                          |
+ |                             ....                              |
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ Total CSRC bytes=CC×4
+*/
+
 // Grab marker bit from RTP buffer, indicating first RTP packet of a frame
 #define GET_RTP_MARKER(data)  (((data)[1] >> 7) & 0x01)
+
+// Macro to extract the 16-bit sequence number from the RTP buffer
+#define GET_RTP_SEQUENCE_NUMBER(data) (((uint16_t)(data[2]) << 8) | (uint16_t)(data[3]))
+
+// Macro to extract the 32-bit timestamp from the RTP buffer
+#define GET_RTP_TIMESTAMP(data) (((uint32_t)(data[4]) << 24) | ((uint32_t)(data[5]) << 16) | ((uint32_t)(data[6]) << 8) | (uint32_t)(data[7]))
+
 
 // RTP Statistics structure
 typedef struct {
