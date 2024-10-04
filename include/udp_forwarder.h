@@ -6,11 +6,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-// UDP configuration
-#define LOCAL_PORT 5400
-#define FORWARD_IP "192.168.1.19"
-#define FORWARD_PORT 5400
-#define FORWARD_BUF_LEN 4094
+#include "config.h"
 
 // Function declarations
 int initialize_udp_socket();

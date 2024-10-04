@@ -6,6 +6,8 @@
 #include <stddef.h> 
 #include <sys/time.h>
 
+#include "config.h"
+
 // RTP Header
 typedef struct {
     uint8_t version;     // RTP version (2 bits)
@@ -21,10 +23,6 @@ typedef struct {
 
 // Grab marker bit from RTP buffer, indicating first RTP packet of a frame
 #define GET_RTP_MARKER(data)  (((data)[1] >> 7) & 0x01)
-
-#define MAX_RTP_PACKETS         100
-#define MAX_FRAME_PER_SECOND    120
-#define SCALE_FACTOR            50
 
 // RTP Statistics structure
 typedef struct {
