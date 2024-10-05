@@ -57,7 +57,9 @@ void print_rb_stats(ring_buffer_t *rb) {
     pthread_mutex_lock(&lock);
     
     float usage_percentage = ((float)rb->max_usage / MAX_RING_BUFFER_SIZE) * 100;
-    printf("    Ring buffer size: %d\n", sizeof(ring_buffer_t));
+    printf("  ring_buffer_t size: %d\n", sizeof(ring_buffer_t));
+    printf("     imu_data_t size: %d\n", sizeof(imu_data_t));
+    printf("     imu loop buffer: %d\n", MAX_RING_BUFFER_SIZE);
     printf("Max usage percentage: %.2f%%\n", usage_percentage);
     
     pthread_mutex_unlock(&lock);
