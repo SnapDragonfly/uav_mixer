@@ -4,8 +4,12 @@
 // Global configuration
 #define UAV_MIXER_DEBUG          0                  //uav_mixer settings, used by developer
 
-// UDP forward default configuration
-#define LOCAL_PORT               5400               //RTP Source
+// UDP-control default configuration
+#define CTL_LOCAL_PORT           5401               //uav_mixer settings
+#define CTL_BUF_LEN              1024               //uav_mixer settings
+
+// UDP-RTP forward default configuration
+#define RTP_LOCAL_PORT           5400               //RTP Source
 #define FORWARD_IP               "192.168.1.19"     //Forward Destination IP
 #define FORWARD_PORT             5400               //Forward Destination Port
 
@@ -29,10 +33,11 @@
 
 // UART IMU default configuration
 #define UART_DEVICE              "/dev/ttyUSB0"     //device
-#define UART_BAUDRATE            921600             //uav_mixer settings
+#define UART_BAUDRATE            921600             //921600, recommended
 #define UART_BUF_LEN             1024               //uav_mixer settings
 #define UART_BUF_SLEEP_US        5000               //uav_mixer settings
 
 #define MAVLINK_DEFAULT_COMP_ID  191                //uav_mixer settings
 #define MAVLINK_DEFAULT_FREQ     100                //uav_mixer settings
+
 #endif /* UAV_MIXER_CONFIG_H */

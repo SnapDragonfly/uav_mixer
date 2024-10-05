@@ -3,7 +3,6 @@
 
 #include "imu_process.h"
 
-
 uint8_t mav_sysid;
 int     demo_stage;
 int64_t time_offset_us;
@@ -154,7 +153,7 @@ void mavlink_attitude_quaternion(mavlink_message_t* msg, mavlink_status_t* statu
 }
 
 void mavlink_process(mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
-    printf("Received MAVLink message with ID %d, seq %d\n", msg->msgid, msg->seq);
+    //printf("Received MAVLink message with ID %d, seq %d\n", msg->msgid, msg->seq);
 
     switch(msg->msgid) {
         case MAVLINK_MSG_ID_HEARTBEAT:

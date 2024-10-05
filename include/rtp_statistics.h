@@ -78,7 +78,7 @@ typedef struct {
 } rtp_stats_t;
 
 // Function declarations
-void init_rtp_stats(rtp_stats_t *stats);
+void init_rtp_stats(rtp_stats_t *stats, int fps);
 bool is_valid_rtp_packet(const uint8_t *data, size_t length);
 void update_rtp_stats(rtp_stats_t *stats, int valid);
 void update_rtp_recv_len(rtp_stats_t *stats, ssize_t len);

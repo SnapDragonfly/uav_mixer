@@ -6,9 +6,13 @@
 #include "udp_forwarder.h"
 #include "uart_imu.h"
 #include "imu_process.h"
+#include "rtp_statistics.h"
+#include "time_sync.h"
 
 // Global variable to track if the program should continue running
 volatile sig_atomic_t running = 1;
+rtp_stats_t g_rtp_stats;
+sync_time_t g_sync_time;
 
 // Signal handler for SIGINT
 void handle_sigint(int signo) {
@@ -18,7 +22,7 @@ void handle_sigint(int signo) {
 // Thread function for forwarding UDP packets
 void* udp_forward_thread(void* arg) {
     int local_socket = *(int*)arg; // Get the socket from the argument
-    forward_udp_packets(local_socket);
+    forward_udp_packets(local_socket, FORWARD_IP, FORWARD_PORT);
     return NULL;
 }
 
@@ -33,12 +37,13 @@ int main() {
     // Register the signal handler for SIGINT (CTRL+C)
     signal(SIGINT, handle_sigint);
 
-    //Initialize MAVLink handler
-    (void)initialize_mavlink(MAVLINK_DEFAULT_FREQ);
+    (void)initialize_mavlink(MAVLINK_DEFAULT_FREQ);          //Initialize MAVLink handler
+    (void)init_rtp_stats(&g_rtp_stats, RTP_FPS_RATE);        // Initialize RTP statistics
+    (void)init_sync_system(&g_sync_time, RTP_TIME_CLOCK_HZ); // Initialize with a clock frequency
 
     // Initialize UDP socket
-    int local_socket = initialize_udp_socket();
-    printf("UDP Forwarder started. Listening on port %d and forwarding to %s:%d\n", LOCAL_PORT, FORWARD_IP, FORWARD_PORT);
+    int local_socket = initialize_udp_socket(RTP_LOCAL_PORT);
+    printf("UDP Forwarder started. Listening on port %d and forwarding to %s:%d\n", RTP_LOCAL_PORT, FORWARD_IP, FORWARD_PORT);
     
     // Create a thread for forwarding UDP packets
     pthread_t forward_thread;

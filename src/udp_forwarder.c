@@ -11,12 +11,12 @@
 #include "time_sync.h"
 
 extern volatile sig_atomic_t running;
-rtp_stats_t g_rtp_stats;
-sync_time_t g_sync_time;
+extern rtp_stats_t g_rtp_stats;
+extern sync_time_t g_sync_time;
 
 #define TIMING_STATUS(A, B)  ((A <= B)?"OK":"NG")
 
-int initialize_udp_socket() {
+int initialize_udp_socket(uint16_t port) {
     int sockfd;
     struct sockaddr_in local_addr;
 
@@ -31,7 +31,7 @@ int initialize_udp_socket() {
     memset(&local_addr, 0, sizeof(local_addr));
     local_addr.sin_family = AF_INET;
     local_addr.sin_addr.s_addr = INADDR_ANY;
-    local_addr.sin_port = htons(LOCAL_PORT);
+    local_addr.sin_port = htons(port);
 
     if (bind(sockfd, (const struct sockaddr *)&local_addr, sizeof(local_addr)) < 0) {
         perror("Bind failed");
@@ -49,13 +49,10 @@ int initialize_udp_socket() {
         exit(EXIT_FAILURE);
     }
 
-    init_rtp_stats(&g_rtp_stats); // Initialize RTP statistics
-    init_sync_system(&g_sync_time, RTP_TIME_CLOCK_HZ); // Initialize with a clock frequency
-
     return sockfd;
 }
 
-void forward_udp_packets(int local_socket) {
+void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port) {
     char buffer[FORWARD_BUF_LEN];
     struct sockaddr_in forward_addr;
     socklen_t addr_len = sizeof(forward_addr);
@@ -63,8 +60,8 @@ void forward_udp_packets(int local_socket) {
     // Set up the address to forward to
     memset(&forward_addr, 0, sizeof(forward_addr));
     forward_addr.sin_family = AF_INET;
-    forward_addr.sin_port = htons(FORWARD_PORT);
-    if (inet_pton(AF_INET, FORWARD_IP, &forward_addr.sin_addr) <= 0) {
+    forward_addr.sin_port = htons(remote_port);
+    if (inet_pton(AF_INET, remote_ip, &forward_addr.sin_addr) <= 0) {
         perror("Invalid address for forwarding");
         close(local_socket);
         exit(EXIT_FAILURE);

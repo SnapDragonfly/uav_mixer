@@ -106,7 +106,7 @@ void print_fps_histogram(const rtp_stats_t *stats) {
     printf("    RMS FPS: %.2f\n", rms_fps);
 }
 
-void init_rtp_stats(rtp_stats_t *stats) {
+void init_rtp_stats(rtp_stats_t *stats, int fps) {
     stats->valid_count   = 0;
     stats->invalid_count = 0;
     stats->max_recv_len  = 0;
@@ -140,7 +140,7 @@ void init_rtp_stats(rtp_stats_t *stats) {
     stats->frame_max_interval           = 0;
     stats->frame_min_interval           = DBL_MAX;
 
-    stats->frame_estimate_interval      = 1000000/RTP_FPS_RATE;
+    stats->frame_estimate_interval      = 1000000/fps;
 
     stats->frame_data_delay_count       = 0;
     stats->frame_data_ontime_count      = 0;
