@@ -8,12 +8,14 @@
 #include "imu_process.h"
 #include "rtp_statistics.h"
 #include "time_sync.h"
+#include "ring_buffer.h"
 
 // Global variable to track if the program should continue running
 volatile sig_atomic_t running = 1;
 rtp_stats_t g_rtp_stats;
 sync_time_t g_sync_time;
 mav_stats_t g_mav_stats;
+ring_buffer_t g_ring_buff;
 
 // Signal handler for SIGINT
 void handle_sigint(int signo) {
@@ -41,6 +43,7 @@ int main() {
     (void)initialize_mavlink(&g_mav_stats, MAVLINK_DEFAULT_FREQ);  //Initialize MAVLink handler
     (void)init_rtp_stats(&g_rtp_stats, RTP_FPS_RATE);              // Initialize RTP statistics
     (void)init_sync_system(&g_sync_time, RTP_TIME_CLOCK_HZ);       // Initialize with a clock frequency
+    (void)init_rb(&g_ring_buff);
 
     // Initialize UDP socket
     int local_socket = initialize_udp_socket(RTP_LOCAL_PORT);
@@ -79,6 +82,8 @@ int main() {
     // Wait for the forwarding and UART threads to finish
     pthread_join(forward_thread, NULL);
     pthread_join(uart_thread, NULL);
+
+    print_rb_stats(&g_ring_buff);
 
     close(local_socket);
     close(uart_fd);

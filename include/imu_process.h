@@ -25,6 +25,7 @@ typedef struct {
     float    update_interval;   // Update interval in seconds
     float    update_rate;       // Update sensor data rate in Hz
     uint64_t last_us;           // last data time in us
+    float att_q_x, att_q_y, att_q_z, att_q_w;
 } mav_stats_t;
 
 int initialize_mavlink(mav_stats_t *stats, float freq);

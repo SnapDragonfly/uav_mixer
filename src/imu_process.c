@@ -2,6 +2,9 @@
 #include <unistd.h>
 
 #include "imu_process.h"
+#include "ring_buffer.h"
+
+extern ring_buffer_t g_ring_buff;
 
 int initialize_mavlink(mav_stats_t *stats, float freq) {
     stats->sysid           = 0;
@@ -126,7 +129,26 @@ void mavlink_highres_imu(mav_stats_t *stats, mavlink_message_t* msg, mavlink_sta
     mavlink_msg_highres_imu_decode(msg, &hr_imu);
 
 #if 1
-    //TBD.
+    // assign data
+    {
+        imu_data_t pushed_data;
+        int64_t ts_us = hr_imu.time_usec + stats->time_offset_us;
+
+        pushed_data.sec   = ts_us / 1000000;           // Timestamp seconds
+        pushed_data.nsec  = (ts_us % 1000000) * 1000;  // Timestamp nanoseconds
+        pushed_data.xacc  = hr_imu.xacc;               // Linear acceleration X
+        pushed_data.yacc  = hr_imu.yacc;               // Linear acceleration Y
+        pushed_data.zacc  = hr_imu.zacc;               // Linear acceleration Z
+        pushed_data.xgyro = hr_imu.xgyro;              // Angular velocity X
+        pushed_data.ygyro = hr_imu.ygyro;              // Angular velocity Y
+        pushed_data.zgyro = hr_imu.zgyro;              // Angular velocity Z
+        pushed_data.q_w   = stats->att_q_w;            // Quaternion W
+        pushed_data.q_x   = stats->att_q_x;            // Quaternion X
+        pushed_data.q_y   = stats->att_q_y;            // Quaternion Y
+        pushed_data.q_z   = stats->att_q_z;            // Quaternion Z
+
+        push_rb(&g_ring_buff, &pushed_data);
+    }
 #else //debug
     // Print out the high-resolution IMU data
     printf("High-Resolution IMU Data:\n");
@@ -142,22 +164,27 @@ void mavlink_highres_imu(mav_stats_t *stats, mavlink_message_t* msg, mavlink_sta
 
     if (stats->time_offset_us != 0 && hr_imu.time_usec > stats->last_us) {
         static int64_t effective_counts = 0;
+        static int effective_rate       = 10;
         effective_counts++;
-        if (0 == (effective_counts % (int)(stats->update_rate))){
+        if (0 == (effective_counts % effective_rate)){
             int64_t effective_hz = 1000000/(hr_imu.time_usec - stats->last_us);
 
             if (effective_hz >= 0.9*stats->update_rate && effective_hz <= 1.5*stats->update_rate){
                 printf("MAVLINK_MSG_ID_HIGHRES_IMU frequency = %lldHz, should be %0.2fHz\n", 
                             effective_hz, 
                             stats->update_rate);
+                
                 stats->no_hr_imu = false;
                 stats->no_att_q = false;
+                effective_rate = stats->update_rate * 5;
             } else {
                 printf("MAVLINK_MSG_ID_HIGHRES_IMU frequency = %lldHz, should be %0.2fHz\n", 
                             effective_hz, 
                             stats->update_rate);
+                
                 stats->no_hr_imu = true;
                 stats->no_att_q = true;
+                effective_rate = stats->update_rate;
             }
         }
     }
@@ -169,7 +196,10 @@ void mavlink_attitude_quaternion(mav_stats_t *stats, mavlink_message_t* msg, mav
     mavlink_msg_attitude_quaternion_decode(msg, &att_q);
 
 #if 1
-    //TBD.
+    stats->att_q_w = att_q.q1;
+    stats->att_q_x = att_q.q2;
+    stats->att_q_y = att_q.q3; 
+    stats->att_q_z = att_q.q4; 
 #else //debug
     // Print the quaternion components
     printf("Quaternion Data:\n");

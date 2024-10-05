@@ -45,4 +45,7 @@
 #define TEST_SPOT_LOGITUDE       1201581931         //test spot, user defined
 #define TEST_SPOT_ALTITUDE       4380               //test spot, user defined
 
+// Define the maximum size of the ring buffer
+#define MAX_RING_BUFFER_SIZE     100                //uav_mixer settings
+
 #endif /* UAV_MIXER_CONFIG_H */

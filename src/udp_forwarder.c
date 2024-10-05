@@ -9,10 +9,12 @@
 #include "udp_forwarder.h"
 #include "rtp_statistics.h"
 #include "time_sync.h"
+#include "ring_buffer.h"
 
 extern volatile sig_atomic_t running;
 extern rtp_stats_t g_rtp_stats;
 extern sync_time_t g_sync_time;
+extern ring_buffer_t g_ring_buff;
 
 #define TIMING_STATUS(A, B)  ((A <= B)?"OK":"NG")
 
@@ -88,6 +90,12 @@ void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port
         update_rtp_stats(&g_rtp_stats, valid);
 
         if (valid) {
+
+            imu_data_t popped_data;
+            if (pop_rb(&g_ring_buff, &popped_data)) {
+                //printf("Popped: sec=%u, nsec=%u\n", popped_data.sec, popped_data.nsec);
+            }
+
             /*
              * Forward the valid RTP packet
              */
