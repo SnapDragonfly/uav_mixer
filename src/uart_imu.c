@@ -11,6 +11,7 @@
 #include "imu_process.h"
 
 extern volatile sig_atomic_t running;
+extern mav_stats_t g_mav_stats;
 
 // Function to initialize UART communication
 int initialize_uart(const char* device, int baudrate) {
@@ -55,7 +56,7 @@ void get_imu_data(int uart_fd) {
             for (int i = 0; i < bytes_read; ++i) {
                 if (mavlink_parse_char(MAVLINK_COMM_0, buffer[i], &msg, &status)) {
                     // Successfully received a complete MAVLink message
-                    mavlink_process(&msg, &status, uart_fd);
+                    mavlink_process(&g_mav_stats, &msg, &status, uart_fd);
                 }
             }
         } else if (bytes_read == -1) {

@@ -3,32 +3,25 @@
 
 #include "imu_process.h"
 
-uint8_t mav_sysid;
-int     demo_stage;
-int64_t time_offset_us;
-bool no_hr_imu, no_att_q;
-float latest_alt, gnd_alt, latest_x, start_x;
-float update_interval;
+int initialize_mavlink(mav_stats_t *stats, float freq) {
+    stats->sysid           = 0;
+    stats->stage           = 0;
 
-int initialize_mavlink(float freq) {
-    mav_sysid       = 0;
-    demo_stage      = 0;
+    stats->no_hr_imu       = true;
+    stats->no_att_q        = true;
 
-    no_hr_imu       = true;
-    no_att_q        = true;
+    stats->time_offset_us  = 0;
 
-    time_offset_us  = 0;
+    stats->latest_alt      = 0;
+    stats->gnd_alt         = 0;
+    stats->latest_x        = 0;
+    stats->start_x         = 0;
 
-    latest_alt      = 0;
-    gnd_alt         = 0;
-    latest_x        = 0;
-    start_x         = 0;
-
-    update_interval = 1000000/freq;
+    stats->update_interval = 1000000/freq;
     return 0;
 }
 
-void mavlink_heartbeat(mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
+void mavlink_heartbeat(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
     int len;
     unsigned char buffer[UART_BUF_LEN];
     struct timeval tv;
@@ -36,81 +29,81 @@ void mavlink_heartbeat(mavlink_message_t* msg, mavlink_status_t* status, int uar
     mavlink_heartbeat_t hb;
     mavlink_msg_heartbeat_decode(msg, &hb);
 
-    if (msg->sysid != mav_sysid) {
-        mav_sysid = msg->sysid;
+    if (msg->sysid != stats->sysid) {
+        stats->sysid = msg->sysid;
         printf("found MAV %d\n", msg->sysid);
     }
 
-    if (0 == time_offset_us) {
+    if (0 == stats->time_offset_us) {
         gettimeofday(&tv, NULL);
-        mavlink_msg_timesync_pack(mav_sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, tv.tv_sec*1000000+tv.tv_usec, mav_sysid, 1); //fill timesync with us instead of ns
+        mavlink_msg_timesync_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, tv.tv_sec*1000000+tv.tv_usec, stats->sysid, 1); //fill timesync with us instead of ns
         len = mavlink_msg_to_send_buffer(&buffer[0], msg);
         write(uart_fd, buffer, len);
 
-        mavlink_msg_system_time_pack(mav_sysid, MAVLINK_DEFAULT_COMP_ID, msg, tv.tv_sec*1000000+tv.tv_usec, 0);
+        mavlink_msg_system_time_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, tv.tv_sec*1000000+tv.tv_usec, 0);
         len = mavlink_msg_to_send_buffer(&buffer[0], msg);
         write(uart_fd, buffer, len);
 
-        mavlink_msg_set_gps_global_origin_pack(mav_sysid, MAVLINK_DEFAULT_COMP_ID, msg, mav_sysid, 247749434, 1210443077, 100000, tv.tv_sec*1000000+tv.tv_usec);
+        mavlink_msg_set_gps_global_origin_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, stats->sysid, 247749434, 1210443077, 100000, tv.tv_sec*1000000+tv.tv_usec);
         len = mavlink_msg_to_send_buffer(&buffer[0], msg);
         write(uart_fd, buffer, len);
 
         printf("sync time_offset_us = 0\n");
     }
 
-    if (no_hr_imu) {
-        mavlink_msg_command_long_pack(mav_sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, 0, MAV_CMD_SET_MESSAGE_INTERVAL, 0, MAVLINK_MSG_ID_HIGHRES_IMU, update_interval, 0, 0, 0, 0, 0);
+    if (stats->no_hr_imu) {
+        mavlink_msg_command_long_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, 0, MAV_CMD_SET_MESSAGE_INTERVAL, 0, MAVLINK_MSG_ID_HIGHRES_IMU, stats->update_interval, 0, 0, 0, 0, 0);
         len = mavlink_msg_to_send_buffer(&buffer[0], msg);
         write(uart_fd, buffer, len);
-        printf("HIGHRES_IMU set interval %0.2fus\n", update_interval);
+        printf("HIGHRES_IMU set interval %0.2fus\n", stats->update_interval);
     }
 
-    if (no_att_q) {
-        mavlink_msg_command_long_pack(mav_sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, 0, MAV_CMD_SET_MESSAGE_INTERVAL, 0, MAVLINK_MSG_ID_ATTITUDE_QUATERNION, update_interval, 0, 0, 0, 0, 0);
+    if (stats->no_att_q) {
+        mavlink_msg_command_long_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, 0, MAV_CMD_SET_MESSAGE_INTERVAL, 0, MAVLINK_MSG_ID_ATTITUDE_QUATERNION, stats->update_interval, 0, 0, 0, 0, 0);
         len = mavlink_msg_to_send_buffer(&buffer[0], msg);
         write(uart_fd, buffer, len);
-        printf("ATTITUDE_QUATERNION set interval %0.2fus\n", update_interval);
+        printf("ATTITUDE_QUATERNION set interval %0.2fus\n", stats->update_interval);
     }
 
     if (hb.custom_mode == COPTER_MODE_GUIDED) {
-        if (demo_stage == 0) {
-            demo_stage = 1;
+        if (stats->stage == 0) {
+            stats->stage = 1;
             gettimeofday(&tv, NULL);
-            mavlink_msg_command_long_pack(mav_sysid, MAVLINK_DEFAULT_COMP_ID, msg, mav_sysid, 1, MAV_CMD_NAV_TAKEOFF, 0, 0, 0, 0, 0, 0, 0, 1);
+            mavlink_msg_command_long_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, stats->sysid, 1, MAV_CMD_NAV_TAKEOFF, 0, 0, 0, 0, 0, 0, 0, 1);
             len = mavlink_msg_to_send_buffer(&buffer[0], msg);
             write(uart_fd, buffer, len);
         }
     } else {
-        demo_stage = 0;
+        stats->stage = 0;
     }
 
     if (hb.base_mode & 128) {
-        if (gnd_alt == 0) {
-            gnd_alt = latest_alt;
-            start_x = latest_x;
-            printf("gnd viso alt %f, start x %f\n", gnd_alt, start_x);
+        if (stats->gnd_alt == 0) {
+            stats->gnd_alt = stats->latest_alt;
+            stats->start_x = stats->latest_x;
+            printf("gnd viso alt %f, start x %f\n", stats->gnd_alt, stats->start_x);
         }
     } else {
-        gnd_alt = 0;
+        stats->gnd_alt = 0;
     }
 }
 
-void mavlink_timesync(mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
+void mavlink_timesync(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
     mavlink_timesync_t ts;
     mavlink_msg_timesync_decode(msg, &ts);
     if (ts.tc1 != 0) {
-        time_offset_us = ts.ts1 - ts.tc1;
-        printf("sync time_offset_us=%lld\n", time_offset_us);
+        stats->time_offset_us = ts.ts1 - ts.tc1;
+        printf("sync time_offset_us=%lld\n", stats->time_offset_us);
     }
 }
 
-void mavlink_statustext(mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
+void mavlink_statustext(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
     mavlink_statustext_t txt;
     mavlink_msg_statustext_decode(msg, &txt);
     printf("fc: %s\n", txt.text);
 }
 
-void mavlink_highres_imu(mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
+void mavlink_highres_imu(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
     mavlink_highres_imu_t hr_imu;
     mavlink_msg_highres_imu_decode(msg, &hr_imu);
 
@@ -128,7 +121,7 @@ void mavlink_highres_imu(mavlink_message_t* msg, mavlink_status_t* status, int u
 #endif
 }
 
-void mavlink_attitude_quaternion(mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
+void mavlink_attitude_quaternion(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
     mavlink_attitude_quaternion_t att_q;
     mavlink_msg_attitude_quaternion_decode(msg, &att_q);
 
@@ -152,28 +145,28 @@ void mavlink_attitude_quaternion(mavlink_message_t* msg, mavlink_status_t* statu
 #endif
 }
 
-void mavlink_process(mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
+void mavlink_process(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
     //printf("Received MAVLink message with ID %d, seq %d\n", msg->msgid, msg->seq);
 
     switch(msg->msgid) {
         case MAVLINK_MSG_ID_HEARTBEAT:
-            mavlink_heartbeat(msg, status, uart_fd);
+            mavlink_heartbeat(stats, msg, status, uart_fd);
             break;
 
         case MAVLINK_MSG_ID_TIMESYNC:
-            mavlink_timesync(msg, status, uart_fd);
+            mavlink_timesync(stats, msg, status, uart_fd);
             break;
 
         case MAVLINK_MSG_ID_STATUSTEXT:
-            mavlink_statustext(msg, status, uart_fd);
+            mavlink_statustext(stats, msg, status, uart_fd);
             break;
 
         case MAVLINK_MSG_ID_HIGHRES_IMU:
-            mavlink_highres_imu(msg, status, uart_fd);
+            mavlink_highres_imu(stats, msg, status, uart_fd);
             break;
 
         case MAVLINK_MSG_ID_ATTITUDE_QUATERNION:
-            mavlink_attitude_quaternion(msg, status, uart_fd);
+            mavlink_attitude_quaternion(stats, msg, status, uart_fd);
             break;
         
         default: 

@@ -1,13 +1,30 @@
 #ifndef IMU_PROCESS_H
 #define IMU_PROCESS_H
 
+#include <stdint.h>
+#include <stdbool.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Waddress-of-packed-member"
 #include "mavlink.h"
 #pragma GCC diagnostic pop
 
 #include "config.h"
-int initialize_mavlink(float freq);
-void mavlink_process(mavlink_message_t* msg, mavlink_status_t* status, int uart_fd);
+
+typedef struct {
+    uint8_t  sysid;             // System ID for MAVLink communication
+    int      stage;             // stage or state
+    int64_t  time_offset_us;    // Time offset in microseconds
+    bool     no_hr_imu;         // Flag for missing high-resolution IMU data
+    bool     no_att_q;          // Flag for missing attitude quaternion data
+    float    latest_alt;        // Latest altitude value
+    float    gnd_alt;           // Ground altitude value
+    float    latest_x;          // Latest x position
+    float    start_x;           // Starting x position
+    float    update_interval;   // Update interval in seconds
+} mav_stats_t;
+
+int initialize_mavlink(mav_stats_t *stats, float freq);
+void mavlink_process(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status_t* status, int uart_fd);
 
 #endif
