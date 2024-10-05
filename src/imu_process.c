@@ -18,6 +18,9 @@ int initialize_mavlink(mav_stats_t *stats, float freq) {
     stats->start_x         = 0;
 
     stats->update_interval = 1000000/freq;
+    stats->update_rate     = freq;
+
+    stats->last_us         = 0;
     return 0;
 }
 
@@ -44,11 +47,21 @@ void mavlink_heartbeat(mav_stats_t *stats, mavlink_message_t* msg, mavlink_statu
         len = mavlink_msg_to_send_buffer(&buffer[0], msg);
         write(uart_fd, buffer, len);
 
-        mavlink_msg_set_gps_global_origin_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, stats->sysid, TEST_SPOT_LATITUDE, TEST_SPOT_LOGITUDE, TEST_SPOT_ALTITUDE, tv.tv_sec*1000000+tv.tv_usec);
-        len = mavlink_msg_to_send_buffer(&buffer[0], msg);
-        write(uart_fd, buffer, len);
+        /*
+         * Set test spot origin at(TEST_SPOT_LATITUDE, TEST_SPOT_LOGITUDE, TEST_SPOT_ALTITUDE)
+         *
+         * sysid: The System ID that defines which system is sending and setting the GPS origin.
+         * compid: The Component ID (usually the autopilot or a specific subsystem).
+         * latitude: The latitude in degrees (scaled by 1E7).
+         * longitude: The longitude in degrees (scaled by 1E7).
+         * altitude: The altitude above sea level in millimeters.
+         * timestamp: The current time in microseconds since the UNIX epoch.
+         */
+        //mavlink_msg_set_gps_global_origin_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, stats->sysid, TEST_SPOT_LATITUDE, TEST_SPOT_LOGITUDE, TEST_SPOT_ALTITUDE, tv.tv_sec*1000000+tv.tv_usec);
+        //len = mavlink_msg_to_send_buffer(&buffer[0], msg);
+        //write(uart_fd, buffer, len);
 
-        printf("sync time_offset_us = 0\n");
+        printf("sync... time_offset_us\n");
     }
 
     if (stats->no_hr_imu) {
@@ -69,6 +82,11 @@ void mavlink_heartbeat(mav_stats_t *stats, mavlink_message_t* msg, mavlink_statu
         if (stats->stage == 0) {
             stats->stage = 1;
             gettimeofday(&tv, NULL);
+
+            /*
+             * Takeoff command when guided mode
+             * 1 meter above the ground
+             */
             mavlink_msg_command_long_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, stats->sysid, 1, MAV_CMD_NAV_TAKEOFF, 0, 0, 0, 0, 0, 0, 0, 1);
             len = mavlink_msg_to_send_buffer(&buffer[0], msg);
             write(uart_fd, buffer, len);
@@ -77,13 +95,13 @@ void mavlink_heartbeat(mav_stats_t *stats, mavlink_message_t* msg, mavlink_statu
         stats->stage = 0;
     }
 
-    if (hb.base_mode & 128) {
+    if (hb.base_mode & 128) { //armed
         if (stats->gnd_alt == 0) {
             stats->gnd_alt = stats->latest_alt;
             stats->start_x = stats->latest_x;
             printf("gnd viso alt %f, start x %f\n", stats->gnd_alt, stats->start_x);
         }
-    } else {
+    } else { //not armed, should be on the ground
         stats->gnd_alt = 0;
     }
 }
@@ -93,7 +111,7 @@ void mavlink_timesync(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status
     mavlink_msg_timesync_decode(msg, &ts);
     if (ts.tc1 != 0) {
         stats->time_offset_us = ts.ts1 - ts.tc1;
-        printf("sync time_offset_us=%lld\n", stats->time_offset_us);
+        printf("sync time_offset_us = %lld\n", stats->time_offset_us);
     }
 }
 
@@ -107,7 +125,9 @@ void mavlink_highres_imu(mav_stats_t *stats, mavlink_message_t* msg, mavlink_sta
     mavlink_highres_imu_t hr_imu;
     mavlink_msg_highres_imu_decode(msg, &hr_imu);
 
-#if 0
+#if 1
+    //TBD.
+#else //debug
     // Print out the high-resolution IMU data
     printf("High-Resolution IMU Data:\n");
     printf("Acceleration (x, y, z): %.3f, %.3f, %.3f m/s²\n",
@@ -119,13 +139,38 @@ void mavlink_highres_imu(mav_stats_t *stats, mavlink_message_t* msg, mavlink_sta
     printf("Pressure: %.2f hPa\n", hr_imu.abs_pressure);
     printf("Temperature: %.2f °C\n", hr_imu.temperature);
 #endif
+
+    if (stats->time_offset_us != 0 && hr_imu.time_usec > stats->last_us) {
+        static int64_t effective_counts = 0;
+        effective_counts++;
+        if (0 == (effective_counts % (int)(stats->update_rate))){
+            int64_t effective_hz = 1000000/(hr_imu.time_usec - stats->last_us);
+
+            if (effective_hz >= 0.9*stats->update_rate && effective_hz <= 1.5*stats->update_rate){
+                printf("MAVLINK_MSG_ID_HIGHRES_IMU frequency = %lldHz, should be %0.2fHz\n", 
+                            effective_hz, 
+                            stats->update_rate);
+                stats->no_hr_imu = false;
+                stats->no_att_q = false;
+            } else {
+                printf("MAVLINK_MSG_ID_HIGHRES_IMU frequency = %lldHz, should be %0.2fHz\n", 
+                            effective_hz, 
+                            stats->update_rate);
+                stats->no_hr_imu = true;
+                stats->no_att_q = true;
+            }
+        }
+    }
+    stats->last_us = hr_imu.time_usec;
 }
 
 void mavlink_attitude_quaternion(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
     mavlink_attitude_quaternion_t att_q;
     mavlink_msg_attitude_quaternion_decode(msg, &att_q);
 
-#if 0
+#if 1
+    //TBD.
+#else //debug
     // Print the quaternion components
     printf("Quaternion Data:\n");
     printf("q1: %.4f, q2: %.4f, q3: %.4f, q4: %.4f\n",

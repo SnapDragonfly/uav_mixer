@@ -29,6 +29,10 @@ void print_rtp_packet_histogram(const rtp_stats_t *stats) {
         sum_packets_square += (k * k) * stats->packet_distribution[k];
     }
 
+    if(0 == total_packets) {
+        return;
+    }
+
     // Calculate average and RMS
     double mean_packets = total_packets > 0 ? sum_packets / total_packets : 0;
     double rms_packets = total_packets > 0 ? sqrt(sum_packets_square / total_packets) : 0;
@@ -77,6 +81,10 @@ void print_fps_histogram(const rtp_stats_t *stats) {
         total_frames += stats->frame_distribution[k];
         sum_fps += k * stats->frame_distribution[k];
         sum_fps_square += (k * k) * stats->frame_distribution[k];
+    }
+
+    if( 0 == total_frames) {
+        return;
     }
 
     // Calculate the average and RMS
@@ -265,6 +273,7 @@ void update_rtp_body_stats(rtp_stats_t *stats){
 }
 
 void print_rtp_stats(const rtp_stats_t *stats) {
+    uint32_t frame_total = stats->frame_data_ontime_count+stats->frame_data_delay_count;
     printf("\n");
     printf("-- Summary ---------------\n");
     printf("Max frame delivery time: %e\n", stats->rtp_max_delivery_per_frame);
@@ -276,7 +285,9 @@ void print_rtp_stats(const rtp_stats_t *stats) {
     printf("    Frame interval time: %e  -  %.02e Hz\n", stats->frame_estimate_interval, 1000000/stats->frame_estimate_interval);
     printf("    Frame delayed count: %u\n", stats->frame_data_delay_count);
     printf("    Frame on-time count: %u\n", stats->frame_data_ontime_count);
-    printf("          Frame on-time: %u%%\n", 100*stats->frame_data_ontime_count/(stats->frame_data_ontime_count+stats->frame_data_delay_count));
+    if (0 != frame_total) {
+        printf("          Frame on-time: %u%%\n", 100*stats->frame_data_ontime_count/(stats->frame_data_ontime_count+stats->frame_data_delay_count));
+    }
     printf("--------------------------\n");
     printf("    Total max RTP packets: %u\n", stats->rtp_max_packets_per_frame);
     printf("    Total min RTP packets: %u\n", stats->rtp_min_packets_per_frame);
