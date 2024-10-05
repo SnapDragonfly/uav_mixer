@@ -1,4 +1,4 @@
-#include "uart_imu.h"
+
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -6,6 +6,9 @@
 #include <signal.h>
 #include <string.h>
 #include <errno.h>
+
+#include "uart_imu.h"
+#include "imu_process.h"
 
 extern volatile sig_atomic_t running;
 
@@ -38,22 +41,28 @@ int initialize_uart(const char* device, int baudrate) {
     return uart_fd;
 }
 
+// Function to get imu sensor data
 void get_imu_data(int uart_fd) {
     char buffer[UART_BUF_LEN];
+    mavlink_message_t msg;
+    mavlink_status_t status;
 
     while (running) {
+        // Read data from UART
         int bytes_read = read(uart_fd, buffer, sizeof(buffer));
         if (bytes_read > 0) {
-            printf("Received IMU data: %d\n", bytes_read);
+            // Parse each byte for a complete MAVLink message
+            for (int i = 0; i < bytes_read; ++i) {
+                if (mavlink_parse_char(MAVLINK_COMM_0, buffer[i], &msg, &status)) {
+                    // Successfully received a complete MAVLink message
+                    mavlink_process(&msg, &status, uart_fd);
+                }
+            }
         } else if (bytes_read == -1) {
             perror("UART read error");
             break;
         }
 
-        usleep(UART_BUF_SLEEP_US); // Sleep for avoiding hogging the CPU
+        usleep(UART_BUF_SLEEP_US); // Sleep to avoid CPU hogging
     }
-
-    close(uart_fd);
-    printf("UART thread stopped.\n");
-    return;
 }

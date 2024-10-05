@@ -5,6 +5,7 @@
 
 #include "udp_forwarder.h"
 #include "uart_imu.h"
+#include "imu_process.h"
 
 // Global variable to track if the program should continue running
 volatile sig_atomic_t running = 1;
@@ -21,7 +22,7 @@ void* udp_forward_thread(void* arg) {
     return NULL;
 }
 
-// UART thread function
+// UART thread function for getting imu sensor data
 void* uart_imu_thread(void* arg) {
     int uart_fd = *((int*)arg);
     get_imu_data(uart_fd);
@@ -31,6 +32,9 @@ void* uart_imu_thread(void* arg) {
 int main() {
     // Register the signal handler for SIGINT (CTRL+C)
     signal(SIGINT, handle_sigint);
+
+    //Initialize MAVLink handler
+    (void)initialize_mavlink(MAVLINK_DEFAULT_FREQ);
 
     // Initialize UDP socket
     int local_socket = initialize_udp_socket();

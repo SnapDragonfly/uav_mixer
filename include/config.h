@@ -33,4 +33,6 @@
 #define UART_BUF_LEN             1024               //uav_mixer settings
 #define UART_BUF_SLEEP_US        5000               //uav_mixer settings
 
+#define MAVLINK_DEFAULT_COMP_ID  191                //uav_mixer settings
+#define MAVLINK_DEFAULT_FREQ     100                //uav_mixer settings
 #endif /* UAV_MIXER_CONFIG_H */

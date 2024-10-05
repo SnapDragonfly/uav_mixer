@@ -2,7 +2,7 @@
 CC = gcc
 
 # Define compiler options
-CFLAGS = -Wall -Iinclude -pthread
+CFLAGS = -Wall -Iinclude -Ilibs/mavlink/all -pthread
 
 # Define source directory and object directory
 SRCDIR = src
