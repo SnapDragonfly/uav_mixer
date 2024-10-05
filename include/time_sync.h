@@ -2,6 +2,7 @@
 #define TIME_SYNC_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "config.h"
 
@@ -13,10 +14,14 @@ typedef struct {
     double sync_counts[MAX_TIME_SYNC_SAMPLES];         // Counts for sync points
     int sync_index;                          // Index for the circular buffer
     int sample_count;                        // Count of samples added
+    bool sync_ok;
 } sync_time_t;
 
 // Function to initialize the SyncSystem
 void init_sync_system(sync_time_t *sys, double clock_hz);
+
+bool set_sync_status(sync_time_t *sys, bool status);
+bool get_sync_status(sync_time_t *sys);
 
 // Function to synchronize time with the given count
 void synchronize_time(sync_time_t *sys, double count);

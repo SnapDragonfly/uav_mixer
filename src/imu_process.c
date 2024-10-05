@@ -1,10 +1,15 @@
 #include <sys/time.h>
 #include <unistd.h>
+#include <stdio.h>
+#include <stdint.h>
+
 
 #include "imu_process.h"
 #include "ring_buffer.h"
+#include "time_sync.h"
 
 extern ring_buffer_t g_ring_buff;
+extern sync_time_t g_sync_time;
 
 int initialize_mavlink(mav_stats_t *stats, float freq) {
     stats->sysid           = 0;
@@ -125,6 +130,11 @@ void mavlink_statustext(mav_stats_t *stats, mavlink_message_t* msg, mavlink_stat
 }
 
 void mavlink_highres_imu(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
+
+    if(!get_sync_status(&g_sync_time)) {
+        return;
+    }
+
     mavlink_highres_imu_t hr_imu;
     mavlink_msg_highres_imu_decode(msg, &hr_imu);
 
@@ -132,20 +142,27 @@ void mavlink_highres_imu(mav_stats_t *stats, mavlink_message_t* msg, mavlink_sta
     // assign data
     {
         imu_data_t pushed_data;
+#if 1 
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        pushed_data.imu_sec   = tv.tv_sec;           // Timestamp seconds
+        pushed_data.imu_nsec  = tv.tv_usec*1000;  // Timestamp nanoseconds
+#else 
         int64_t ts_us = hr_imu.time_usec + stats->time_offset_us;
+        pushed_data.imu_sec   = ts_us / 1000000;           // Timestamp seconds
+        pushed_data.imu_nsec  = (ts_us % 1000000) * 1000;  // Timestamp nanoseconds
+#endif
 
-        pushed_data.sec   = ts_us / 1000000;           // Timestamp seconds
-        pushed_data.nsec  = (ts_us % 1000000) * 1000;  // Timestamp nanoseconds
-        pushed_data.xacc  = hr_imu.xacc;               // Linear acceleration X
-        pushed_data.yacc  = hr_imu.yacc;               // Linear acceleration Y
-        pushed_data.zacc  = hr_imu.zacc;               // Linear acceleration Z
-        pushed_data.xgyro = hr_imu.xgyro;              // Angular velocity X
-        pushed_data.ygyro = hr_imu.ygyro;              // Angular velocity Y
-        pushed_data.zgyro = hr_imu.zgyro;              // Angular velocity Z
-        pushed_data.q_w   = stats->att_q_w;            // Quaternion W
-        pushed_data.q_x   = stats->att_q_x;            // Quaternion X
-        pushed_data.q_y   = stats->att_q_y;            // Quaternion Y
-        pushed_data.q_z   = stats->att_q_z;            // Quaternion Z
+        pushed_data.xacc      = hr_imu.xacc;               // Linear acceleration X
+        pushed_data.yacc      = hr_imu.yacc;               // Linear acceleration Y
+        pushed_data.zacc      = hr_imu.zacc;               // Linear acceleration Z
+        pushed_data.xgyro     = hr_imu.xgyro;              // Angular velocity X
+        pushed_data.ygyro     = hr_imu.ygyro;              // Angular velocity Y
+        pushed_data.zgyro     = hr_imu.zgyro;              // Angular velocity Z
+        pushed_data.q_w       = stats->att_q_w;            // Quaternion W
+        pushed_data.q_x       = stats->att_q_x;            // Quaternion X
+        pushed_data.q_y       = stats->att_q_y;            // Quaternion Y
+        pushed_data.q_z       = stats->att_q_z;            // Quaternion Z
 
         push_rb(&g_ring_buff, &pushed_data);
     }
@@ -192,6 +209,11 @@ void mavlink_highres_imu(mav_stats_t *stats, mavlink_message_t* msg, mavlink_sta
 }
 
 void mavlink_attitude_quaternion(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
+
+    if(!get_sync_status(&g_sync_time)) {
+        return;
+    }
+
     mavlink_attitude_quaternion_t att_q;
     mavlink_msg_attitude_quaternion_decode(msg, &att_q);
 

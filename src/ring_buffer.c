@@ -70,3 +70,10 @@ void reset_rb_max_usage(ring_buffer_t *rb) {
     rb->max_usage = 0;
     pthread_mutex_unlock(&lock);
 }
+
+uint32_t get_rb_count(ring_buffer_t *rb) {
+    pthread_mutex_lock(&lock);
+    uint32_t count = rb->count; // Get the current count
+    pthread_mutex_unlock(&lock);
+    return count;
+}

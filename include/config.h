@@ -14,7 +14,9 @@
 #define FORWARD_PORT             5400               //Forward Destination Port
 
 #define FORWARD_BUF_LEN          4094               //uav_mixer settings
-
+#define FORWARD_RTP_IMU_LEN      56                 //uav_mixer settings, RPi3B+ 56
+#define FORWARD_RTP_IMU_NUM      1                  //uav_mixer settings, RPi3B+ 1 for try
+#define FORWARD_RTP_PREFIX_LEN   (FORWARD_RTP_IMU_LEN*FORWARD_RTP_IMU_NUM)
 
 // RTP FPS default configuration
 #define RTP_FPS_RATE             30                 //Hz
@@ -28,6 +30,7 @@
 #define RTP_FRAME_SYNC_NUM       200                //uav_mixer settings
 #define RTP_FRAME_SYNC_THRESHOLD 10                 //uav_mixer settings
 #define RTP_FPS_UPDATE_RATE      (RTP_FPS_RATE*20)  //uav_mixer settings
+#define RTP_FRAME_ADJUST_MS      600                //uav_mixer settings, RPi3B+ OV5647
 
 #define MAX_TIME_SYNC_SAMPLES    10                 //uav_mixer settings
 

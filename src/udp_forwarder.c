@@ -18,6 +18,18 @@ extern ring_buffer_t g_ring_buff;
 
 #define TIMING_STATUS(A, B)  ((A <= B)?"OK":"NG")
 
+#define RTP_BUFFER_ADDR(buffer) (buffer+FORWARD_RTP_PREFIX_LEN)
+#define RTP_BUFFER_SIZE(buffer) (sizeof(buffer)-FORWARD_RTP_PREFIX_LEN)
+
+// Grab marker bit from RTP buffer, indicating first RTP packet of a frame
+#define GET_RTP_MARKER(data)  (((RTP_BUFFER_ADDR(data))[1] >> 7) & 0x01)
+
+// Macro to extract the 16-bit sequence number from the RTP buffer
+#define GET_RTP_SEQUENCE_NUMBER(data) (((uint16_t)(RTP_BUFFER_ADDR(data)[2]) << 8) | (uint16_t)(RTP_BUFFER_ADDR(data)[3]))
+
+// Macro to extract the 32-bit timestamp from the RTP buffer
+#define GET_RTP_TIMESTAMP(data) (((uint32_t)(RTP_BUFFER_ADDR(data)[4]) << 24) | ((uint32_t)(RTP_BUFFER_ADDR(data)[5]) << 16) | ((uint32_t)(RTP_BUFFER_ADDR(data)[6]) << 8) | (uint32_t)(RTP_BUFFER_ADDR(data)[7]))
+
 int initialize_udp_socket(uint16_t port) {
     int sockfd;
     struct sockaddr_in local_addr;
@@ -78,7 +90,7 @@ void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port
         static double latest_error   = 100;
         double error;
 
-        ssize_t recv_len = recvfrom(local_socket, buffer, sizeof(buffer), 0, NULL, NULL);
+        ssize_t recv_len = recvfrom(local_socket, RTP_BUFFER_ADDR(buffer), RTP_BUFFER_SIZE(buffer), 0, NULL, NULL);
         if (recv_len < 0) {
             perror("Receive failed");
             continue;
@@ -86,20 +98,34 @@ void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port
         update_rtp_recv_len(&g_rtp_stats, recv_len);
 
         // Check if the received packet is a valid RTP packet
-        bool valid = is_valid_rtp_packet((const uint8_t *)buffer, recv_len);
+        bool valid = is_valid_rtp_packet((const uint8_t *)RTP_BUFFER_ADDR(buffer), recv_len);
         update_rtp_stats(&g_rtp_stats, valid);
 
         if (valid) {
+            double packet_time;
+            if(get_sync_status(&g_sync_time)) {
+                packet_time = estimate_time(&g_sync_time, GET_RTP_TIMESTAMP(buffer)) - g_rtp_stats.frame_estimate_interval - RTP_FRAME_ADJUST_MS*1000000;
+            } else {
+                packet_time = 0;
+            }
 
             imu_data_t popped_data;
             if (pop_rb(&g_ring_buff, &popped_data)) {
-                //printf("Popped: sec=%u, nsec=%u\n", popped_data.sec, popped_data.nsec);
+                popped_data.img_sec  = (uint32_t)(packet_time / 1e6);
+                popped_data.img_nsec = (uint32_t)((packet_time - (popped_data.img_sec * 1e6)) * 1e3); 
+                memcpy(buffer, &popped_data, sizeof(imu_data_t));
+
+                //printf("Popped: img_sec=%u, img_nsec=%u\n", popped_data.img_sec, popped_data.img_nsec);
+                //printf("Popped: imu_sec=%u, imu_nsec=%u\n", popped_data.imu_sec, popped_data.imu_nsec);
+            } else {
+                memset(buffer, 0, sizeof(imu_data_t));
             }
 
             /*
              * Forward the valid RTP packet
              */
-            ssize_t sent_len = sendto(local_socket, buffer, recv_len, 0, (const struct sockaddr *)&forward_addr, addr_len);
+            //ssize_t sent_len = sendto(local_socket, RTP_BUFFER_ADDR(buffer), recv_len, 0, (const struct sockaddr *)&forward_addr, addr_len);
+            ssize_t sent_len = sendto(local_socket, buffer, recv_len+sizeof(imu_data_t), 0, (const struct sockaddr *)&forward_addr, addr_len);
             if (sent_len < 0) {
                 perror("Send failed");
                 break;
@@ -131,13 +157,15 @@ void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port
                 status_trend = latest_error > previous_error;  // and error's trend is getting large
 
                 status1   = abs(error) > RTP_FRAME_SYNC_THRESHOLD && status_trend;      // abs() > error threshold
-                status2   = error < 0 && status_trend;                          // error < 0
+                status2   = error < 0 && status_trend;                                  // error < 0
 
                 if ( status1 || status2 ){
                     synchronize_time(&g_sync_time, GET_RTP_TIMESTAMP(buffer));
+                    set_sync_status(&g_sync_time, false);
                     check_skip = 1;
                     printf("\033[1;31m%u sync error %.2f %.2f %.2f\033[0m\n", GET_RTP_TIMESTAMP(buffer), error, previous_error, latest_error);
                 }else{
+                    set_sync_status(&g_sync_time, true);
                     printf("%u sync skip %.2f %.2f %.2f\n", GET_RTP_TIMESTAMP(buffer), error, previous_error, latest_error);
                 }
             }
@@ -169,7 +197,7 @@ void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port
 #endif
                     previous_error = latest_error;
                     latest_error = 100.0*packet_error/packet_count;
-                    printf("%u erro %.2f %% - %d %u\n", GET_RTP_SEQUENCE_NUMBER(buffer), latest_error, packet_count, calculated_timestamp - GET_RTP_TIMESTAMP(buffer));
+                    printf("%u estim %.2f %% -> %d %u\n", GET_RTP_SEQUENCE_NUMBER(buffer), latest_error, packet_count, calculated_timestamp - GET_RTP_TIMESTAMP(buffer));
                 }else{ 
                     check_skip = 0;
                 }

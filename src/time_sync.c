@@ -15,6 +15,16 @@ void init_sync_system(sync_time_t *sys, double clock_hz) {
         sys->sync_times[i].tv_usec = 0;
         sys->sync_counts[i] = 0;
     }
+    sys->sync_ok = false;
+}
+
+bool get_sync_status(sync_time_t *sys) {
+    return sys->sync_ok;
+}
+
+bool set_sync_status(sync_time_t *sys, bool status) {
+    sys->sync_ok = status;
+    return sys->sync_ok;
 }
 
 // Function to synchronize system time with the given count
