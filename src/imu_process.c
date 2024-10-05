@@ -44,7 +44,7 @@ void mavlink_heartbeat(mav_stats_t *stats, mavlink_message_t* msg, mavlink_statu
         len = mavlink_msg_to_send_buffer(&buffer[0], msg);
         write(uart_fd, buffer, len);
 
-        mavlink_msg_set_gps_global_origin_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, stats->sysid, 247749434, 1210443077, 100000, tv.tv_sec*1000000+tv.tv_usec);
+        mavlink_msg_set_gps_global_origin_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, stats->sysid, TEST_SPOT_LATITUDE, TEST_SPOT_LOGITUDE, TEST_SPOT_ALTITUDE, tv.tv_sec*1000000+tv.tv_usec);
         len = mavlink_msg_to_send_buffer(&buffer[0], msg);
         write(uart_fd, buffer, len);
 

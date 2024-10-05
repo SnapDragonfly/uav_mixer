@@ -40,4 +40,9 @@
 #define MAVLINK_DEFAULT_COMP_ID  191                //uav_mixer settings
 #define MAVLINK_DEFAULT_FREQ     100                //uav_mixer settings
 
+// Test spot Latitude/Longitude/Altitude
+#define TEST_SPOT_LATITUDE       303025097          //test spot, user defined
+#define TEST_SPOT_LOGITUDE       1201581931         //test spot, user defined
+#define TEST_SPOT_ALTITUDE       4380               //test spot, user defined
+
 #endif /* UAV_MIXER_CONFIG_H */
