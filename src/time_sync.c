@@ -5,7 +5,7 @@
 #include "time_sync.h"
 
 // Function to initialize the SyncSystem
-void init_sync_system(SyncSystem *sys, double clock_hz) {
+void init_sync_system(sync_time_t *sys, double clock_hz) {
     sys->count = 0;
     sys->clock_hz = clock_hz;
     sys->sync_index = 0;
@@ -18,7 +18,7 @@ void init_sync_system(SyncSystem *sys, double clock_hz) {
 }
 
 // Function to synchronize system time with the given count
-void synchronize_time(SyncSystem *sys, double count) {
+void synchronize_time(sync_time_t *sys, double count) {
     struct timeval current_time;
     gettimeofday(&current_time, NULL); // Get the current system time
 
@@ -34,7 +34,7 @@ void synchronize_time(SyncSystem *sys, double count) {
 
 
 // Function to estimate system time based on a new count
-double estimate_time(SyncSystem *sys, double count) {
+double estimate_time(sync_time_t *sys, double count) {
     if (sys->sample_count == 0) {
         return -1; // No sync data available
     }
@@ -65,7 +65,7 @@ double estimate_time(SyncSystem *sys, double count) {
 }
 
 // Function to calculate the count based on the current system time
-uint32_t calculate_timestamp(SyncSystem *sys) {
+uint32_t calculate_timestamp(sync_time_t *sys) {
     if (sys->sample_count == 0) {
         return 0; // No sync data available, return 0 for unsigned int
     }
@@ -90,7 +90,7 @@ uint32_t calculate_timestamp(SyncSystem *sys) {
 }
 
 // Function to calculate error between the estimated time and actual system time
-double calculate_error(SyncSystem *sys, double count) {
+double calculate_error(sync_time_t *sys, double count) {
     struct timeval current_time;
     gettimeofday(&current_time, NULL); // Get the current system time
 

@@ -13,22 +13,22 @@ typedef struct {
     double sync_counts[MAX_TIME_SYNC_SAMPLES];         // Counts for sync points
     int sync_index;                          // Index for the circular buffer
     int sample_count;                        // Count of samples added
-} SyncSystem;
+} sync_time_t;
 
 // Function to initialize the SyncSystem
-void init_sync_system(SyncSystem *sys, double clock_hz);
+void init_sync_system(sync_time_t *sys, double clock_hz);
 
 // Function to synchronize time with the given count
-void synchronize_time(SyncSystem *sys, double count);
+void synchronize_time(sync_time_t *sys, double count);
 
 // Function to estimate system time based on count and clock frequency
-double estimate_time(SyncSystem *sys, double count);
+double estimate_time(sync_time_t *sys, double count);
 
 // Function to calculate the count based on the current system time
-uint32_t calculate_timestamp(SyncSystem *sys);
+uint32_t calculate_timestamp(sync_time_t *sys);
 
 // Function to calculate error statistics (mean error)
-double calculate_error(SyncSystem *sys, double count);
+double calculate_error(sync_time_t *sys, double count);
 
 // Function to get the current system time in microseconds as a double
 double get_system_time_us();

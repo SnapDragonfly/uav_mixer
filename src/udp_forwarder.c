@@ -11,8 +11,8 @@
 #include "time_sync.h"
 
 extern volatile sig_atomic_t running;
-rtp_stats_t stats;
-SyncSystem sync_sys;
+rtp_stats_t g_rtp_stats;
+sync_time_t g_sync_time;
 
 #define TIMING_STATUS(A, B)  ((A <= B)?"OK":"NG")
 
@@ -49,8 +49,8 @@ int initialize_udp_socket() {
         exit(EXIT_FAILURE);
     }
 
-    init_rtp_stats(&stats); // Initialize RTP statistics
-    init_sync_system(&sync_sys, RTP_TIME_CLOCK_HZ); // Initialize with a clock frequency
+    init_rtp_stats(&g_rtp_stats); // Initialize RTP statistics
+    init_sync_system(&g_sync_time, RTP_TIME_CLOCK_HZ); // Initialize with a clock frequency
 
     return sockfd;
 }
@@ -84,11 +84,11 @@ void forward_udp_packets(int local_socket) {
             perror("Receive failed");
             continue;
         }
-        update_rtp_recv_len(&stats, recv_len);
+        update_rtp_recv_len(&g_rtp_stats, recv_len);
 
         // Check if the received packet is a valid RTP packet
         bool valid = is_valid_rtp_packet((const uint8_t *)buffer, recv_len);
-        update_rtp_stats(&stats, valid);
+        update_rtp_stats(&g_rtp_stats, valid);
 
         if (valid) {
             /*
@@ -104,23 +104,23 @@ void forward_udp_packets(int local_socket) {
              * RTP packet stats statistics
              */
             if(1 == GET_RTP_MARKER(buffer)){
-                update_rtp_head_stats(&stats);
+                update_rtp_head_stats(&g_rtp_stats);
             }else{
-                update_rtp_body_stats(&stats); 
+                update_rtp_body_stats(&g_rtp_stats); 
             }
 
             /*
              * RTP video timestamp sync
              */
             if (packet_count == 0){
-                synchronize_time(&sync_sys, GET_RTP_TIMESTAMP(buffer));
+                synchronize_time(&g_sync_time, GET_RTP_TIMESTAMP(buffer));
                 check_skip = 1;
 
 #if (UAV_MIXER_DEBUG)
                 printf("%u sync first\n", GET_RTP_TIMESTAMP(buffer));
 #endif
             } else if (packet_count % RTP_FRAME_SYNC_NUM == 0) {
-                error = calculate_error(&sync_sys, GET_RTP_TIMESTAMP(buffer));
+                error = calculate_error(&g_sync_time, GET_RTP_TIMESTAMP(buffer));
 
                 bool status1, status2, status_trend;
                 status_trend = latest_error > previous_error;  // and error's trend is getting large
@@ -129,7 +129,7 @@ void forward_udp_packets(int local_socket) {
                 status2   = error < 0 && status_trend;                          // error < 0
 
                 if ( status1 || status2 ){
-                    synchronize_time(&sync_sys, GET_RTP_TIMESTAMP(buffer));
+                    synchronize_time(&g_sync_time, GET_RTP_TIMESTAMP(buffer));
                     check_skip = 1;
                     printf("\033[1;31m%u sync error %.2f %.2f %.2f\033[0m\n", GET_RTP_TIMESTAMP(buffer), error, previous_error, latest_error);
                 }else{
@@ -139,7 +139,7 @@ void forward_udp_packets(int local_socket) {
             packet_count++;
             update_count++;
 
-            unsigned int calculated_timestamp = calculate_timestamp(&sync_sys);
+            unsigned int calculated_timestamp = calculate_timestamp(&g_sync_time);
             if(GET_RTP_TIMESTAMP(buffer) > calculated_timestamp){
                 packet_error++;
                 previous_error = latest_error;
@@ -154,7 +154,7 @@ void forward_udp_packets(int local_socket) {
             if (update_count % RTP_FPS_UPDATE_RATE == 0){
                 if (check_skip == 0){
 #if (UAV_MIXER_DEBUG)
-                    double estimated_time = estimate_time(&sync_sys, GET_RTP_TIMESTAMP(buffer));
+                    double estimated_time = estimate_time(&g_sync_time, GET_RTP_TIMESTAMP(buffer));
                     double system_time    = get_system_time_us();
                     // Estimate system time for the latest count
                     printf("%u time %s %.2f vs %.2f µs\n", 
@@ -170,10 +170,10 @@ void forward_udp_packets(int local_socket) {
                 }
             }
         } else {
-            printf("Invalid RTP packet received. Total invalid count: %u\n", stats.invalid_count);
+            printf("Invalid RTP packet received. Total invalid count: %u\n", g_rtp_stats.invalid_count);
         }
     }
 
     // Print RTP statistics
-    print_rtp_stats(&stats);
+    print_rtp_stats(&g_rtp_stats);
 }
