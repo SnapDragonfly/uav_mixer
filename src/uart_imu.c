@@ -56,7 +56,7 @@ void get_imu_data(int uart_fd) {
             for (int i = 0; i < bytes_read; ++i) {
                 if (mavlink_parse_char(MAVLINK_COMM_0, buffer[i], &msg, &status)) {
                     // Successfully received a complete MAVLink message
-                    mavlink_process(&g_mav_stats, &msg, &status, uart_fd);
+                    process_mavlink(&g_mav_stats, &msg, &status, uart_fd);
                 }
             }
         } else if (bytes_read == -1) {

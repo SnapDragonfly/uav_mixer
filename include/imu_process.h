@@ -11,9 +11,10 @@
 
 #include "config.h"
 
+// Define the structure with the updated stage type
 typedef struct {
     uint8_t  sysid;             // System ID for MAVLink communication
-    int      stage;             // stage or state
+    int      stage;             // Stage or state
     int64_t  time_offset_us;    // Time offset in microseconds
     bool     no_hr_imu;         // Flag for missing high-resolution IMU data
     bool     no_att_q;          // Flag for missing attitude quaternion data
@@ -25,6 +26,6 @@ typedef struct {
 } mav_stats_t;
 
 int initialize_mavlink(mav_stats_t *stats, float freq);
-void mavlink_process(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status_t* status, int uart_fd);
+void process_mavlink(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status_t* status, int uart_fd);
 
 #endif

@@ -145,7 +145,7 @@ void mavlink_attitude_quaternion(mav_stats_t *stats, mavlink_message_t* msg, mav
 #endif
 }
 
-void mavlink_process(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
+void process_mavlink(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
     //printf("Received MAVLink message with ID %d, seq %d\n", msg->msgid, msg->seq);
 
     switch(msg->msgid) {
