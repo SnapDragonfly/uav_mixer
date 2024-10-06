@@ -82,6 +82,7 @@ int main() {
 
     // Main loop to keep the program running until SIGINT is received
     while (running) {
+        update_rtp_interruption(&g_rtp_stats);
         // Optionally, you can add a sleep here to reduce CPU usage
         sleep(1); // Sleep for 1s
     }

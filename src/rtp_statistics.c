@@ -152,6 +152,12 @@ void init_rtp_stats(rtp_stats_t *stats, int fps) {
 
     stats->frame_data_delay_count       = 0;
     stats->frame_data_ontime_count      = 0;
+
+    stats->rtp_packets_previous_count   = 0;
+    stats->rtp_packets_max_peak_bucket  = 0;
+    stats->rtp_packets_safe_threshold   = 0;
+
+    stats->rtp_packet_interrupted       = true;
 }
 
 bool is_valid_rtp_packet(const uint8_t *data, size_t length) {
@@ -171,7 +177,59 @@ bool is_valid_rtp_packet(const uint8_t *data, size_t length) {
     return true; // Valid RTP packet
 }
 
-void update_rtp_stats(rtp_stats_t *stats, int valid) {
+bool is_rtp_packet_interrupted(rtp_stats_t *stats) {
+    return stats->rtp_packet_interrupted;
+}
+
+double get_rtp_packet_time_adjust(rtp_stats_t *stats) {
+    if (stats->rtp_packets_previous_count < stats->rtp_packets_safe_threshold) {
+        return stats->rtp_min_delivery_per_frame;
+    }
+
+    return stats->rtp_max_delivery_per_frame;
+}
+
+void update_rtp_interruption(rtp_stats_t *stats) {
+    /*
+     * Be careful, as it's NOT thread safe
+     * just change status variable, which is NOT that time critical
+     */
+
+    struct timeval current_time;
+    gettimeofday(&current_time, NULL);
+
+    /*
+     * Update interruption
+     */
+    double diff = (current_time.tv_sec - stats->rtp_last_time_of_begin_frame.tv_sec) * 1000000.0 
+                + (current_time.tv_usec - stats->rtp_last_time_of_begin_frame.tv_usec);
+
+    if(diff/2 > stats->frame_estimate_interval) {
+        stats->rtp_packet_interrupted = true;
+    }
+
+    stats->rtp_packet_interrupted = false;
+
+    /*
+     *
+     */
+    uint32_t peak_count = 0;
+    uint16_t max_bucket = 0;
+    for (int i = 0; i <= MAX_RTP_PACKETS; i++) {
+        if(stats->packet_distribution[i] > peak_count) {
+            peak_count = stats->packet_distribution[i];
+            stats->rtp_packets_max_peak_bucket  =i;
+        }
+
+        if(stats->packet_distribution[i] > 0) {
+            max_bucket = i;
+        }
+    }
+
+    stats->rtp_packets_safe_threshold   = (max_bucket + stats->rtp_packets_max_peak_bucket)/2;
+}
+
+void update_rtp_packet_stats(rtp_stats_t *stats, int valid) {
     if (valid) {
         stats->valid_count++;
     } else {
@@ -248,6 +306,7 @@ void update_rtp_head_stats(rtp_stats_t *stats){
         }else{
             stats->packet_distribution[stats->rtp_packets_count_per_frame]++;
         }
+        stats->rtp_packets_previous_count   = stats->rtp_packets_count_per_frame;
 
         uint32_t fps = 1000000/interval_diff;
         if(fps > MAX_FRAME_PER_SECOND){
@@ -296,6 +355,8 @@ void print_rtp_stats(const rtp_stats_t *stats) {
     printf("    Max RTP packet length: %u\n", stats->max_recv_len);
     printf("    Min RTP packet length: %u\n", stats->min_recv_len);
     printf("  Max RTP packet overflow: %u\n", stats->packet_distribution_overflow);
+    printf("     RTP packet threshold: %u\n", stats->rtp_packets_safe_threshold);
+    printf("      RTP packet max peak: %u\n", stats->rtp_packets_max_peak_bucket);
 
 #if 0
     printf("RTP packets distribution:\n");

@@ -65,12 +65,22 @@ typedef struct {
     double   frame_estimate_interval;
     uint32_t frame_data_delay_count;
     uint32_t frame_data_ontime_count;
+
+    uint16_t rtp_packets_previous_count;
+    uint16_t rtp_packets_max_peak_bucket;
+    uint16_t rtp_packets_safe_threshold;
+
+    bool rtp_packet_interrupted;
 } rtp_stats_t;
+
+bool is_valid_rtp_packet(const uint8_t *data, size_t length);
+bool is_rtp_packet_interrupted(rtp_stats_t *stats);
+double get_rtp_packet_time_adjust(rtp_stats_t *stats);
 
 // Function declarations
 void init_rtp_stats(rtp_stats_t *stats, int fps);
-bool is_valid_rtp_packet(const uint8_t *data, size_t length);
-void update_rtp_stats(rtp_stats_t *stats, int valid);
+void update_rtp_packet_stats(rtp_stats_t *stats, int valid);
+void update_rtp_interruption(rtp_stats_t *stats);
 void update_rtp_recv_len(rtp_stats_t *stats, ssize_t len);
 void update_rtp_head_stats(rtp_stats_t *stats);
 void update_rtp_body_stats(rtp_stats_t *stats);
