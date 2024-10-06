@@ -13,7 +13,7 @@
 #define FORWARD_IP               "192.168.1.19"     //Forward Destination IP
 #define FORWARD_PORT             5400               //Forward Destination Port
 
-#define FORWARD_BUF_LEN          4094               //uav_mixer settings
+#define FORWARD_BUF_LEN          4096               //uav_mixer settings
 #define FORWARD_RTP_IMU_LEN      56                 //uav_mixer settings, RPi3B+ 56
 #define FORWARD_RTP_IMU_NUM      1                  //uav_mixer settings, RPi3B+ 1 for try
 #define FORWARD_RTP_PREFIX_LEN   (FORWARD_RTP_IMU_LEN*FORWARD_RTP_IMU_NUM)
