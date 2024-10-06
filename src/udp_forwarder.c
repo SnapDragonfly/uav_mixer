@@ -209,4 +209,5 @@ void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port
 
     // Print RTP statistics
     print_rtp_stats(&g_rtp_stats);
+    print_rb_stats(&g_ring_buff);
 }

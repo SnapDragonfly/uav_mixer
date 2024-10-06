@@ -26,6 +26,7 @@ void handle_sigint(int signo) {
 void* udp_forward_thread(void* arg) {
     int local_socket = *(int*)arg; // Get the socket from the argument
     forward_udp_packets(local_socket, FORWARD_IP, FORWARD_PORT);
+    close(local_socket);
     return NULL;
 }
 
@@ -33,6 +34,7 @@ void* udp_forward_thread(void* arg) {
 void* uart_imu_thread(void* arg) {
     int uart_fd = *((int*)arg);
     get_imu_data(uart_fd);
+    close(uart_fd);
     return NULL;
 }
 
@@ -81,17 +83,13 @@ int main() {
     // Main loop to keep the program running until SIGINT is received
     while (running) {
         // Optionally, you can add a sleep here to reduce CPU usage
-        usleep(1000000); // Sleep for 1000 ms
+        sleep(1); // Sleep for 1s
     }
 
     // Wait for the forwarding and UART threads to finish
     pthread_join(forward_thread, NULL);
     pthread_join(uart_thread, NULL);
 
-    print_rb_stats(&g_ring_buff);
-
-    close(local_socket);
-    close(uart_fd);
     printf("UDP Forwarder and UART communication stopped.\n");
     return 0;
 }
