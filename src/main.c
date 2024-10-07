@@ -43,9 +43,15 @@ int main() {
     signal(SIGINT, handle_sigint);
 
     if (FORWARD_RTP_IMU_LEN != sizeof(imu_data_t)) {
-        perror("Fatal error, check hardware/gcc compatibility!\n");
+        perror("Fatal error: imu_data_t, check hardware/gcc compatibility!\n");
         return 1;
     }
+
+    if (FORWARD_RTP_IMG_LEN != sizeof(mix_head_t)) {
+        perror("Fatal error: mix_head_t, check hardware/gcc compatibility!\n");
+        return 1;
+    }
+
 
     (void)initialize_mavlink(&g_mav_stats, MAVLINK_DEFAULT_FREQ);  //Initialize MAVLink handler
     (void)init_rtp_stats(&g_rtp_stats, RTP_FPS_RATE);              // Initialize RTP statistics

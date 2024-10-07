@@ -55,8 +55,8 @@ int initialize_udp_socket(uint16_t port) {
 
     // Set receive timeout for the socket
     struct timeval timeout;
-    timeout.tv_sec = 2;  // 2 seconds timeout
-    timeout.tv_usec = 0; // 0 microseconds timeout
+    timeout.tv_sec = 0;  // 0 seconds timeout
+    timeout.tv_usec = 1; // 0 microseconds timeout
     if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
         perror("Failed to set socket options");
         close(sockfd);
@@ -89,10 +89,39 @@ void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port
         static double previous_error = 100;
         static double latest_error   = 100;
         double error;
+        uint32_t len, num;
 
         ssize_t recv_len = recvfrom(local_socket, RTP_BUFFER_ADDR(buffer), RTP_BUFFER_SIZE(buffer), 0, NULL, NULL);
         if (recv_len < 0) {
-            perror("Receive failed");
+            //perror("Receive failed");
+            uint32_t offset;
+            num = get_rb_count(&g_ring_buff);
+            num = (num < RTP_FRAME_IMU_NUM)? num: RTP_FRAME_IMU_NUM;
+
+            len    = sizeof(mix_head_t);
+            offset = sizeof(mix_head_t);
+            for (int i = 0; i < num; i++) {
+                imu_data_t popped_data;
+                (void)pop_rb(&g_ring_buff, &popped_data);
+
+                memcpy(buffer+offset, &popped_data, sizeof(imu_data_t));
+                offset += sizeof(imu_data_t);
+                len    += sizeof(imu_data_t);
+            }
+            mix_head_t* p_mixed_head = (mix_head_t*)buffer;
+            p_mixed_head->img_nsec = 0;
+            p_mixed_head->img_sec  = 0;
+            p_mixed_head->imu_num  = num;
+            p_mixed_head->reserved = MAGIC_IMU_FRAME_NUM;
+
+            if (0 != num) {
+                update_rtp_imu_stats(&g_rtp_stats, num);
+                ssize_t sent_len = sendto(local_socket, buffer, len, 0, (const struct sockaddr *)&forward_addr, addr_len);
+                if (sent_len < 0) {
+                    perror("Send failed");
+                    break;
+                }
+            }
             continue;
         }
         update_rtp_recv_len(&g_rtp_stats, recv_len);
@@ -109,23 +138,44 @@ void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port
                 packet_time = 0;
             }
 
-            imu_data_t popped_data;
-            if (pop_rb(&g_ring_buff, &popped_data)) {
-                popped_data.img_sec  = (uint32_t)(packet_time / 1e6);
-                popped_data.img_nsec = (uint32_t)((packet_time - (popped_data.img_sec * 1e6)) * 1e3); 
-                memcpy(buffer, &popped_data, sizeof(imu_data_t));
+            /*
+             * Handle IMU data, ahead of real RTP packet
+             */
+            uint32_t len, num, offset;
+            char* p_buffer = NULL;
 
-                //printf("Popped: img_sec=%u, img_nsec=%u\n", popped_data.img_sec, popped_data.img_nsec);
-                //printf("Popped: imu_sec=%u, imu_nsec=%u\n", popped_data.imu_sec, popped_data.imu_nsec);
+            num = get_rb_count(&g_ring_buff);
+            if (0 != num) {
+                num = (num < FORWARD_RTP_IMU_NUM)? num: FORWARD_RTP_IMU_NUM;
+                p_buffer = RTP_BUFFER_ADDR(buffer) - sizeof(mix_head_t) - num*sizeof(imu_data_t);
+
+                mix_head_t* p_mixed_head = (mix_head_t*)p_buffer;
+                p_mixed_head->img_sec  = (uint32_t)(packet_time / 1e6);
+                p_mixed_head->img_nsec = (uint32_t)((packet_time - (p_mixed_head->img_sec * 1e6)) * 1e3); 
+                p_mixed_head->imu_num  = num;
+                p_mixed_head->reserved = 0;
+
+                len    = sizeof(mix_head_t);
+                offset = sizeof(mix_head_t);
+                for (int i = 0; i < num; i++) {
+                    imu_data_t popped_data;
+                    (void)pop_rb(&g_ring_buff, &popped_data);
+
+                    memcpy(p_buffer+offset, &popped_data, sizeof(imu_data_t));
+                    offset += sizeof(imu_data_t);
+                    len    += sizeof(imu_data_t);
+                }
             } else {
-                memset(buffer, 0, sizeof(imu_data_t));
+                p_buffer = RTP_BUFFER_ADDR(buffer) - sizeof(mix_head_t);
+                len = sizeof(mix_head_t);
+                memset(p_buffer, 0, sizeof(mix_head_t));
             }
 
             /*
              * Forward the valid RTP packet
              */
             //ssize_t sent_len = sendto(local_socket, RTP_BUFFER_ADDR(buffer), recv_len, 0, (const struct sockaddr *)&forward_addr, addr_len);
-            ssize_t sent_len = sendto(local_socket, buffer, recv_len+sizeof(imu_data_t), 0, (const struct sockaddr *)&forward_addr, addr_len);
+            ssize_t sent_len = sendto(local_socket, p_buffer, recv_len+len, 0, (const struct sockaddr *)&forward_addr, addr_len);
             if (sent_len < 0) {
                 perror("Send failed");
                 break;

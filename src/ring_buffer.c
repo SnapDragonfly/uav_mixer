@@ -28,6 +28,8 @@ bool push_rb(ring_buffer_t *rb, const imu_data_t *data) {
     rb->head = (rb->head + 1) % MAX_RING_BUFFER_SIZE;
     rb->count++;
 
+    //printf("+: %u\n", rb->count);
+
     // Update maximum usage
     if (rb->count > rb->max_usage) {
         rb->max_usage = rb->count;
@@ -49,6 +51,8 @@ bool pop_rb(ring_buffer_t *rb, imu_data_t *data) {
     rb->tail = (rb->tail + 1) % MAX_RING_BUFFER_SIZE;
     rb->count--;
 
+    //printf("-: %u\n", rb->count);
+
     pthread_rwlock_unlock(&rwlock); // Unlock writer
     return true;
 }
@@ -58,6 +62,7 @@ void print_rb_stats(ring_buffer_t *rb) {
     
     float usage_percentage = ((float)rb->max_usage / MAX_RING_BUFFER_SIZE) * 100;
     printf("  ring_buffer_t size: %d\n", (int)sizeof(ring_buffer_t));
+    printf("     mix_head_t size: %d\n", (int)sizeof(mix_head_t));
     printf("     imu_data_t size: %d\n", (int)sizeof(imu_data_t));
     printf("     imu loop buffer: %d\n", MAX_RING_BUFFER_SIZE);
     printf("Max usage percentage: %.2f%%\n", usage_percentage);

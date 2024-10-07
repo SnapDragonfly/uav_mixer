@@ -66,8 +66,8 @@ double estimate_time(sync_time_t *sys, double count) {
 
     // Handle overflow in microseconds field
     while (estimated_time.tv_usec >= 1000000) {
-        estimated_time.tv_sec += 1;
-        estimated_time.tv_usec -= 1000000;
+        estimated_time.tv_sec += estimated_time.tv_usec/1000000;
+        estimated_time.tv_usec = estimated_time.tv_usec%1000000;
     }
 
     // Return the estimated system time in microseconds since epoch

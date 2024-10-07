@@ -14,8 +14,11 @@
 #define FORWARD_PORT             5400               //Forward Destination Port
 
 #define FORWARD_BUF_LEN          4096               //uav_mixer settings
-#define FORWARD_RTP_IMU_LEN      56                 //uav_mixer settings, RPi3B+ 56
-#define FORWARD_RTP_IMU_NUM      1                  //uav_mixer settings, RPi3B+ 1 for try
+
+#define FORWARD_RTP_IMU_NUM      10                  //uav_mixer settings, RPi3B+ 10 for try
+#define FORWARD_RTP_IMG_LEN      12                  //sizeof(mix_head_t)
+#define FORWARD_RTP_IMU_LEN      48                  //sizeof(imu_data_t)
+#define FORWARD_RTP_MIX_LEN      (FORWARD_RTP_IMG_LEN+ FORWARD_RTP_IMU_NUM*FORWARD_RTP_IMU_LEN)
 #define FORWARD_RTP_PREFIX_LEN   (FORWARD_RTP_IMU_LEN*FORWARD_RTP_IMU_NUM)
 
 // RTP FPS default configuration
@@ -33,6 +36,12 @@
 #define RTP_FRAME_ADJUST_MS      600                //uav_mixer settings, RPi3B+ OV5647
 
 #define MAX_TIME_SYNC_SAMPLES    10                 //uav_mixer settings
+
+// Compile-time check
+#define RTP_FRAME_IMU_NUM        50                 //uav_mixer settings, 25x56=25*7*8=1400 bytes
+#if (FORWARD_BUF_LEN / FORWARD_RTP_IMU_LEN) <= RTP_FRAME_IMU_NUM
+    #error "FORWARD_BUF_LEN / FORWARD_RTP_IMU_LEN must be greater than RTP_FRAME_IMU_NUM"
+#endif
 
 // UART IMU default configuration
 #define UART_DEVICE              "/dev/ttyUSB0"     //device

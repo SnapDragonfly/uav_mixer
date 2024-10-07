@@ -44,6 +44,10 @@ typedef struct {
 typedef struct {
     uint32_t valid_count;   // Count of valid RTP packets
     uint32_t invalid_count; // Count of invalid RTP packets
+    uint32_t rtp_imu_count;
+    uint16_t rtp_max_imu_per_frame;
+    uint16_t rtp_min_imu_per_frame;
+
     ssize_t  max_recv_len;  // Max received length
     ssize_t  min_recv_len;  // Min received length
     uint32_t packet_distribution_overflow;
@@ -52,9 +56,11 @@ typedef struct {
 
     struct timeval rtp_last_time_of_begin_frame;
     struct timeval rtp_last_time_of_end_frame;
+
     uint16_t rtp_packets_count_per_frame;
     uint16_t rtp_max_packets_per_frame;
     uint16_t rtp_min_packets_per_frame;
+
     double   rtp_max_delivery_per_frame;
     double   rtp_min_delivery_per_frame;
     double   rtp_max_gap_per_frame;
@@ -79,6 +85,7 @@ double get_rtp_packet_time_adjust(rtp_stats_t *stats);
 
 // Function declarations
 void init_rtp_stats(rtp_stats_t *stats, int fps);
+void update_rtp_imu_stats(rtp_stats_t *stats, uint32_t num);
 void update_rtp_packet_stats(rtp_stats_t *stats, int valid);
 void update_rtp_interruption(rtp_stats_t *stats);
 void update_rtp_recv_len(rtp_stats_t *stats, ssize_t len);

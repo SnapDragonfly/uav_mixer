@@ -157,6 +157,10 @@ void init_rtp_stats(rtp_stats_t *stats, int fps) {
     stats->rtp_packets_max_peak_bucket  = 0;
     stats->rtp_packets_safe_threshold   = 0;
 
+    stats->rtp_imu_count                = 0;
+    stats->rtp_max_imu_per_frame        = 0;
+    stats->rtp_min_imu_per_frame        = UINT16_MAX;
+
     stats->rtp_packet_interrupted       = true;
 }
 
@@ -187,6 +191,16 @@ double get_rtp_packet_time_adjust(rtp_stats_t *stats) {
     }
 
     return stats->rtp_max_delivery_per_frame;
+}
+
+void update_rtp_imu_stats(rtp_stats_t *stats, uint32_t num) {
+    stats->rtp_imu_count++;
+    if (num > stats->rtp_max_imu_per_frame) {
+        stats->rtp_max_imu_per_frame = num;
+    }
+    if (num < stats->rtp_min_imu_per_frame) {
+        stats->rtp_min_imu_per_frame = num;
+    }
 }
 
 void update_rtp_interruption(rtp_stats_t *stats) {
@@ -352,6 +366,9 @@ void print_rtp_stats(const rtp_stats_t *stats) {
     printf("    Total min RTP packets: %u\n", stats->rtp_min_packets_per_frame);
     printf("  Total valid RTP packets: %u\n", stats->valid_count);
     printf("Total invalid RTP packets: %u\n", stats->invalid_count);
+    printf("    Total IMU RTP packets: %u\n", stats->rtp_imu_count);
+    printf("     Max IMU packet count: %u\n", stats->rtp_max_imu_per_frame);
+    printf("     Min IMU packet count: %u\n", stats->rtp_min_imu_per_frame);
     printf("    Max RTP packet length: %u\n", stats->max_recv_len);
     printf("    Min RTP packet length: %u\n", stats->min_recv_len);
     printf("  Max RTP packet overflow: %u\n", stats->packet_distribution_overflow);
