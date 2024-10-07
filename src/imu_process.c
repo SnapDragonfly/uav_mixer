@@ -7,9 +7,11 @@
 #include "imu_process.h"
 #include "ring_buffer.h"
 #include "time_sync.h"
+#include "rtp_statistics.h"
 
 extern ring_buffer_t g_ring_buff;
 extern sync_time_t g_sync_time;
+extern rtp_stats_t g_rtp_stats;
 
 int initialize_mavlink(mav_stats_t *stats, float freq) {
     stats->sysid           = 0;
@@ -140,7 +142,7 @@ void mavlink_highres_imu(mav_stats_t *stats, mavlink_message_t* msg, mavlink_sta
 
 #if 1
     // assign data
-    {
+    if (!is_rtp_packet_interrupted(&g_rtp_stats)) {
         imu_data_t pushed_data;
 #if 1 
         struct timeval tv;
