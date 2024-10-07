@@ -33,10 +33,10 @@
 #define RTP_CLOCK_INC_UNIT_HZ    10                 //uav_mixer settings
 #define RTP_CLOCK_CTR_MIN_DELAY  100                // 100*~10us = 10ms
 #define RTP_CLOCK_CTR_MAX_DELAY  1000               // 100*~10us = 100ms
-#define RTP_FRAME_SYNC_NUM       200                //uav_mixer settings
+#define RTP_FRAME_SYNC_NUM       50                 //uav_mixer settings
 #define RTP_FRAME_SYNC_THRESHOLD 10                 //uav_mixer settings
 #define RTP_FPS_UPDATE_RATE      (RTP_FPS_RATE*20)  //uav_mixer settings
-#define RTP_FRAME_ADJUST_MS      600                //uav_mixer settings, RPi3B+ OV5647
+#define RTP_FRAME_ADJUST_MS      0                  //uav_mixer settings, RPi3B+ OV5647
 
 #define MAX_TIME_SYNC_SAMPLES    10                 //uav_mixer settings
 

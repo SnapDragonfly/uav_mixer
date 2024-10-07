@@ -1,8 +1,8 @@
 #include <sys/time.h>
+#include <time.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdint.h>
-
 
 #include "imu_process.h"
 #include "ring_buffer.h"
@@ -145,10 +145,10 @@ void mavlink_highres_imu(mav_stats_t *stats, mavlink_message_t* msg, mavlink_sta
     if (!is_rtp_packet_interrupted(&g_rtp_stats)) {
         imu_data_t pushed_data;
 #if 1 
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
+        struct timespec tv;
+        clock_gettime(CLOCK_REALTIME, &tv);
         pushed_data.imu_sec   = tv.tv_sec;           // Timestamp seconds
-        pushed_data.imu_nsec  = tv.tv_usec*1000;  // Timestamp nanoseconds
+        pushed_data.imu_nsec  = tv.tv_nsec;  // Timestamp nanoseconds
 #else 
         int64_t ts_us = hr_imu.time_usec + stats->time_offset_us;
         pushed_data.imu_sec   = ts_us / 1000000;           // Timestamp seconds

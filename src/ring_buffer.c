@@ -19,8 +19,8 @@ bool push_rb(ring_buffer_t *rb, const imu_data_t *data) {
     pthread_rwlock_wrlock(&rwlock); // Writer lock
 
     if (rb->count >= MAX_RING_BUFFER_SIZE) {
-        printf("Warning: Unable to push to buffer, maximum capacity reached!\n");
         pthread_rwlock_unlock(&rwlock); // Unlock writer
+        printf("Warning: Unable to push to buffer, maximum capacity reached!\n");
         return false; // Buffer is full
     }
 
@@ -28,14 +28,14 @@ bool push_rb(ring_buffer_t *rb, const imu_data_t *data) {
     rb->head = (rb->head + 1) % MAX_RING_BUFFER_SIZE;
     rb->count++;
 
-    //printf("+: %u\n", rb->count);
-
     // Update maximum usage
     if (rb->count > rb->max_usage) {
         rb->max_usage = rb->count;
     }
 
     pthread_rwlock_unlock(&rwlock); // Unlock writer
+
+    //printf("+: %u\n", rb->count);
     return true;
 }
 
@@ -51,9 +51,9 @@ bool pop_rb(ring_buffer_t *rb, imu_data_t *data) {
     rb->tail = (rb->tail + 1) % MAX_RING_BUFFER_SIZE;
     rb->count--;
 
-    //printf("-: %u\n", rb->count);
-
     pthread_rwlock_unlock(&rwlock); // Unlock writer
+
+    //printf("-: %u\n", rb->count);
     return true;
 }
 
@@ -80,5 +80,6 @@ uint32_t get_rb_count(ring_buffer_t *rb) {
     pthread_rwlock_rdlock(&rwlock); // Reader lock
     uint32_t count = rb->count; // Get the current count
     pthread_rwlock_unlock(&rwlock); // Unlock reader
+
     return count;
 }

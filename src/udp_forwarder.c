@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+#include <time.h>
 #include <arpa/inet.h>
 
 #include "udp_forwarder.h"
@@ -129,11 +130,15 @@ void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port
         update_rtp_packet_stats(&g_rtp_stats, valid);
 
         if (valid) {
-            double packet_time;
+            struct timespec packet_time;
             if(get_sync_status(&g_sync_time)) {
-                packet_time = estimate_time(&g_sync_time, GET_RTP_TIMESTAMP(buffer)) - g_rtp_stats.frame_estimate_interval - RTP_FRAME_ADJUST_MS*1000000;
+                (void)estimate_time(&g_sync_time, &packet_time, GET_RTP_TIMESTAMP(buffer));
+                //printf("packet time - sec: %ld, nsec: %ld\n", packet_time.tv_sec, packet_time.tv_nsec);
+                (void)time_minus_us(&packet_time, g_rtp_stats.frame_estimate_interval);
+                (void)time_minus_us(&packet_time, RTP_FRAME_ADJUST_MS*1000);
             } else {
-                packet_time = 0;
+                packet_time.tv_sec  = 0;
+                packet_time.tv_nsec = 0;
             }
 
             /*
@@ -148,10 +153,12 @@ void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port
                 p_buffer = RTP_BUFFER_ADDR(buffer) - sizeof(mix_head_t) - num*sizeof(imu_data_t);
 
                 mix_head_t* p_mixed_head = (mix_head_t*)p_buffer;
-                p_mixed_head->img_sec  = (uint32_t)(packet_time / 1e6);
-                p_mixed_head->img_nsec = (uint32_t)((packet_time - (p_mixed_head->img_sec * 1e6)) * 1e3); 
+                p_mixed_head->img_sec  = packet_time.tv_sec;
+                p_mixed_head->img_nsec = packet_time.tv_nsec; 
                 p_mixed_head->imu_num  = num;
                 p_mixed_head->reserved = 0;
+
+                //printf("%u img(%u) sec: %u nsec: %u\n", GET_RTP_SEQUENCE_NUMBER(buffer), GET_RTP_TIMESTAMP(buffer),  p_mixed_head->img_sec, p_mixed_head->img_nsec);
 
                 len    = sizeof(mix_head_t);
                 offset = sizeof(mix_head_t);
