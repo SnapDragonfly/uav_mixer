@@ -22,6 +22,12 @@ int initialize_uart(const char* device, int baudrate) {
         return -1;
     }
 
+    // Flush both input and output buffers of the serial port
+    if (tcflush(uart_fd, TCIOFLUSH) != 0) {
+        perror("Failed to flush the serial port buffers");
+        return 1;
+    }
+
     struct termios options;
     tcgetattr(uart_fd, &options);
 
@@ -74,7 +80,7 @@ void get_imu_data(int uart_fd) {
         FD_ZERO(&read_fds);
         FD_SET(uart_fd, &read_fds);
 
-        // Set timeout (example: 2 seconds)
+        // Set timeout (2 seconds???)
         timeout.tv_sec = 2;
         timeout.tv_usec = 0;
 
