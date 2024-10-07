@@ -20,6 +20,9 @@ typedef struct {
 // Function to initialize the SyncSystem
 void init_sync_system(sync_time_t *sys, double clock_hz);
 
+void inc_sync_clock(sync_time_t *sys);
+void dec_sync_clock(sync_time_t *sys);
+
 bool set_sync_status(sync_time_t *sys, bool status);
 bool get_sync_status(sync_time_t *sys);
 

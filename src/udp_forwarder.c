@@ -82,10 +82,8 @@ void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port
     }
 
     while (running) {
-        static unsigned int packet_count = 0;
+        static unsigned int packet_count = 1;
         static unsigned int packet_error = 0;
-        static unsigned int update_count = RTP_FPS_RATE/2;
-        static unsigned int check_skip = 0;
         static double previous_error = 100;
         static double latest_error   = 100;
         double error;
@@ -189,18 +187,16 @@ void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port
                 /*
                  * RTP video timestamp sync
                  */
+                unsigned int calculated_timestamp = calculate_timestamp(&g_sync_time);
+                int delta_timestamp = (int)(calculated_timestamp*1.0 - GET_RTP_TIMESTAMP(buffer));
                 if (packet_count == 0){
                     synchronize_time(&g_sync_time, GET_RTP_TIMESTAMP(buffer));
-                    check_skip = 1;
-
-#if (UAV_MIXER_DEBUG)
                     printf("%u sync first\n", GET_RTP_TIMESTAMP(buffer));
-#endif
                 } else if (packet_count % RTP_FRAME_SYNC_NUM == 0) {
-                    error = calculate_error(&g_sync_time, GET_RTP_TIMESTAMP(buffer));
+                    error = 100.0*packet_error/packet_count;
 
                     bool status1, status2, status_trend;
-                    status_trend = latest_error > previous_error;  // and error's trend is getting large
+                    status_trend = latest_error >= previous_error;  // and error's trend is getting large
 
                     status1   = abs(error) > RTP_FRAME_SYNC_THRESHOLD && status_trend;      // abs() > error threshold
                     status2   = error < 0 && status_trend;                                  // error < 0
@@ -208,44 +204,34 @@ void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port
                     if ( status1 || status2 ){
                         synchronize_time(&g_sync_time, GET_RTP_TIMESTAMP(buffer));
                         set_sync_status(&g_sync_time, false);
-                        check_skip = 1;
                         printf("\033[1;31m%u sync error %.2f %.2f %.2f\033[0m\n", GET_RTP_TIMESTAMP(buffer), error, previous_error, latest_error);
                     }else{
                         set_sync_status(&g_sync_time, true);
-                        printf("%u sync skip %.2f %.2f %.2f\n", GET_RTP_TIMESTAMP(buffer), error, previous_error, latest_error);
+                        printf("%u mon %.2f %.2f %.2f\n", GET_RTP_SEQUENCE_NUMBER(buffer),  error, previous_error, latest_error);
+                        printf("%u mon %u vs %u --> delta %d\n", GET_RTP_SEQUENCE_NUMBER(buffer), GET_RTP_TIMESTAMP(buffer), (uint32_t)calculated_timestamp, delta_timestamp);
                     }
                 }
                 packet_count++;
-                update_count++;
 
-                unsigned int calculated_timestamp = calculate_timestamp(&g_sync_time);
-                if(GET_RTP_TIMESTAMP(buffer) > calculated_timestamp){
+                if(delta_timestamp < RTP_CLOCK_CTR_MIN_DELAY){
                     packet_error++;
-                    previous_error = latest_error;
-                    latest_error = 100.0*packet_error/packet_count;
-#if (UAV_MIXER_DEBUG)
-                        printf("%u error timestamp: %u vs %u\n", GET_RTP_SEQUENCE_NUMBER(buffer), GET_RTP_TIMESTAMP(buffer), calculated_timestamp);
-                }else{
-                        printf("%u good timestamp: %u vs %u\n", GET_RTP_SEQUENCE_NUMBER(buffer), GET_RTP_TIMESTAMP(buffer), calculated_timestamp);
-#endif
-                }
+                    inc_sync_clock(&g_sync_time);
 
-                if (update_count % RTP_FPS_UPDATE_RATE == 0){
-                    if (check_skip == 0){
-#if (UAV_MIXER_DEBUG)
-                        double estimated_time = estimate_time(&g_sync_time, GET_RTP_TIMESTAMP(buffer));
-                        double system_time    = get_system_time_us();
-                        // Estimate system time for the latest count
-                        printf("%u time %s %.2f vs %.2f µs\n", 
-                                GET_RTP_SEQUENCE_NUMBER(buffer), TIMING_STATUS(estimated_time, system_time), estimated_time, system_time);
-                        printf("%u stmp %s %u vs %u counts\n", 
-                                GET_RTP_SEQUENCE_NUMBER(buffer), TIMING_STATUS(GET_RTP_TIMESTAMP(buffer), calculated_timestamp), GET_RTP_TIMESTAMP(buffer), calculated_timestamp);
-#endif
+                    previous_error = latest_error;
+                    latest_error   = 100.0*packet_error/packet_count;
+                    //printf("%u error timestamp: %u vs %u\n", GET_RTP_SEQUENCE_NUMBER(buffer), GET_RTP_TIMESTAMP(buffer), calculated_timestamp);
+                } else if (delta_timestamp > RTP_CLOCK_CTR_MAX_DELAY) {
+                    packet_error++;
+                    dec_sync_clock(&g_sync_time);
+
+                    previous_error = latest_error;
+                    latest_error   = 100.0*packet_error/packet_count;
+                    //printf("%u good timestamp: %u vs %u\n", GET_RTP_SEQUENCE_NUMBER(buffer), GET_RTP_TIMESTAMP(buffer), calculated_timestamp);
+                }else {
+                    error = 100.0*packet_error/packet_count;
+                    if (error != latest_error) {
                         previous_error = latest_error;
-                        latest_error = 100.0*packet_error/packet_count;
-                        printf("%u estim %.2f %% -> %d %u\n", GET_RTP_SEQUENCE_NUMBER(buffer), latest_error, packet_count, calculated_timestamp - GET_RTP_TIMESTAMP(buffer));
-                    }else{ 
-                        check_skip = 0;
+                        latest_error = error;
                     }
                 }
             }else{

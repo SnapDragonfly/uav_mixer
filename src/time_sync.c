@@ -18,6 +18,16 @@ void init_sync_system(sync_time_t *sys, double clock_hz) {
     sys->sync_ok = false;
 }
 
+// Function to increase sync clock to reduce err of SyncSystem
+void inc_sync_clock(sync_time_t *sys) {
+    sys->clock_hz += RTP_CLOCK_INC_UNIT_HZ;
+}
+
+// Function to decrease sync clock to reduce err of SyncSystem
+void dec_sync_clock(sync_time_t *sys) {
+    sys->clock_hz -= RTP_CLOCK_INC_UNIT_HZ;
+}
+
 bool get_sync_status(sync_time_t *sys) {
     return sys->sync_ok;
 }
