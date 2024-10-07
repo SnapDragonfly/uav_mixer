@@ -29,7 +29,7 @@
 #define SCALE_FACTOR             50                 //uav_mixer settings
 
 // RTP Time Sync default configuration
-#define RTP_TIME_CLOCK_HZ        90000              //uav_mixer settings
+#define RTP_CLOCK_FREQ_HZ        90000              //uav_mixer settings, ~10us
 #define RTP_FRAME_SYNC_NUM       200                //uav_mixer settings
 #define RTP_FRAME_SYNC_THRESHOLD 10                 //uav_mixer settings
 #define RTP_FPS_UPDATE_RATE      (RTP_FPS_RATE*20)  //uav_mixer settings

@@ -55,7 +55,7 @@ int main() {
 
     (void)initialize_mavlink(&g_mav_stats, MAVLINK_DEFAULT_FREQ);  //Initialize MAVLink handler
     (void)init_rtp_stats(&g_rtp_stats, RTP_FPS_RATE);              // Initialize RTP statistics
-    (void)init_sync_system(&g_sync_time, RTP_TIME_CLOCK_HZ);       // Initialize with a clock frequency
+    (void)init_sync_system(&g_sync_time, RTP_CLOCK_FREQ_HZ);       // Initialize with a clock frequency
     (void)init_rb(&g_ring_buff);
 
     // Initialize UDP socket
