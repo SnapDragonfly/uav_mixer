@@ -31,10 +31,16 @@
 // RTP Time Sync default configuration
 #define RTP_CLOCK_FREQ_HZ        90000              //uav_mixer settings, ~10us
 #define RTP_CLOCK_INC_UNIT_HZ    10                 //uav_mixer settings
-#define RTP_CLOCK_CTR_MIN_DELAY  100                // 100*~10us = 10ms
-#define RTP_CLOCK_CTR_MAX_DELAY  1000               // 100*~10us = 100ms
-#define RTP_FRAME_SYNC_NUM       50                 //uav_mixer settings
-#define RTP_FRAME_SYNC_THRESHOLD 10                 //uav_mixer settings
+#define RTP_CLOCK_DEC_UNIT_HZ    5                  //uav_mixer settings
+
+#define RTP_CLOCK_CTR_MIN_DELAY  500                // 100*~10us = 10ms
+#define RTP_CLOCK_CTR_MAX_DELAY  700                // 100*~10us = 100ms
+#define RTP_CLOCK_CTR_THRESHOLD  1000               //uav_mixer settings
+#if RTP_CLOCK_CTR_THRESHOLD < RTP_CLOCK_CTR_MAX_DELAY
+    #error "RTP_CLOCK_CTR_THRESHOLD must be greater than RTP_CLOCK_CTR_MAX_DELAY"
+#endif
+
+#define RTP_FRAME_SYNC_NUM       10                 //uav_mixer settings
 #define RTP_FPS_UPDATE_RATE      (RTP_FPS_RATE*20)  //uav_mixer settings
 #define RTP_FRAME_ADJUST_MS      0                  //uav_mixer settings, RPi3B+ OV5647
 
@@ -61,6 +67,6 @@
 #define TEST_SPOT_ALTITUDE       4380               //test spot, user defined
 
 // Define the maximum size of the ring buffer
-#define MAX_RING_BUFFER_SIZE     100                //uav_mixer settings
+#define MAX_RING_BUFFER_SIZE     20                 //uav_mixer settings
 
 #endif /* UAV_MIXER_CONFIG_H */

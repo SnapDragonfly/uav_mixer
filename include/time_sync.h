@@ -32,6 +32,8 @@ void synchronize_time(sync_time_t *sys, double count);
 // Function to estimate system time based on count and clock frequency
 struct timespec* estimate_time(sync_time_t *sys, struct timespec* estimated_time, double count);
 
+bool is_before(struct timespec* estimated_time, struct timespec* current_time);
+
 // Function to calculate the count based on the current system time
 uint32_t calculate_timestamp(sync_time_t *sys);
 

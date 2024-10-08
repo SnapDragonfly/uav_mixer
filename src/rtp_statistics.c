@@ -243,21 +243,19 @@ void update_rtp_interruption(rtp_stats_t *stats) {
     stats->rtp_packets_safe_threshold   = (max_bucket + stats->rtp_packets_max_peak_bucket)/2;
 }
 
-void update_rtp_packet_stats(rtp_stats_t *stats, int valid) {
+void update_rtp_packet_stats(rtp_stats_t *stats, int valid, ssize_t len) {
     if (valid) {
         stats->valid_count++;
+
+        if (len > stats->max_recv_len){
+            stats->max_recv_len = len;
+        }
+
+        if (len < stats->min_recv_len){
+            stats->min_recv_len = len;
+        }
     } else {
         stats->invalid_count++;
-    }
-}
-
-void update_rtp_recv_len(rtp_stats_t *stats, ssize_t len){
-    if (len > stats->max_recv_len){
-        stats->max_recv_len = len;
-    }
-
-    if (len < stats->min_recv_len){
-        stats->min_recv_len = len;
     }
 }
 
@@ -386,4 +384,35 @@ void print_rtp_stats(const rtp_stats_t *stats) {
     printf("--------------------------\n");
     print_fps_histogram(stats);
     printf("--------------------------\n");
+}
+
+bool is_first_packet_of_frame(uint16_t current_seq, bool marker_bit) {
+    // Static variables to store the previous sequence number and marker bit
+    static uint16_t previous_seq = 0;
+    static bool previous_marker_bit = false;
+    static bool first_packet_checked = false;
+
+    // Check if this is the first packet of a new frame
+    bool is_first_packet = false;
+
+    // Detect packet loss (if previous sequence number + 1 != current sequence number)
+    if (first_packet_checked) {
+        // Check for packet loss, considering wrap-around
+        if ((current_seq != (previous_seq + 1)) && !(previous_seq == 65535 && current_seq == 0)) {
+            printf("\033[31mPacket loss detected! Expected sequence number: %d, but got: %d\033[0m\n", (previous_seq + 1) % 65536, current_seq);
+        }
+    }
+
+    // If the current packet has marker bit set to 0 and previous packet had marker bit set to 1,
+    // it's likely the first packet of a new frame
+    if (previous_marker_bit == true && marker_bit == false) {
+        is_first_packet = true;
+    }
+
+    // Update the static variables for the next call
+    previous_seq = current_seq;
+    previous_marker_bit = marker_bit;
+    first_packet_checked = true;  // Mark that the first packet has been checked
+
+    return is_first_packet;
 }

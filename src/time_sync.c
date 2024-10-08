@@ -22,11 +22,13 @@ void init_sync_system(sync_time_t *sys, double clock_hz) {
 // Function to increase sync clock to reduce err of SyncSystem
 void inc_sync_clock(sync_time_t *sys) {
     sys->clock_hz += RTP_CLOCK_INC_UNIT_HZ;
+    //printf("+\n");
 }
 
 // Function to decrease sync clock to reduce err of SyncSystem
 void dec_sync_clock(sync_time_t *sys) {
-    sys->clock_hz -= RTP_CLOCK_INC_UNIT_HZ;
+    sys->clock_hz -= RTP_CLOCK_DEC_UNIT_HZ;
+    //printf("-\n");
 }
 
 bool get_sync_status(sync_time_t *sys) {
@@ -137,6 +139,22 @@ struct timespec get_system_time_us() {
 
     // Convert time to microseconds and return as double
     return current_time;
+}
+
+bool is_before(struct timespec* estimated_time, struct timespec* current_time) {
+    // Compare seconds first
+    if (estimated_time->tv_sec < current_time->tv_sec) {
+        return true;
+    } else if (estimated_time->tv_sec > current_time->tv_sec) {
+        return false;
+    }
+
+    // If seconds are equal, compare nanoseconds
+    if (estimated_time->tv_nsec < current_time->tv_nsec) {
+        return true;
+    } else {
+        return false;
+    }
 }
 
 struct timespec* time_minus_us(struct timespec *time, uint32_t us) {

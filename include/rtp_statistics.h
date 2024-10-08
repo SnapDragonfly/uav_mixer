@@ -81,14 +81,14 @@ typedef struct {
 
 bool is_valid_rtp_packet(const uint8_t *data, size_t length);
 bool is_rtp_packet_interrupted(rtp_stats_t *stats);
+bool is_first_packet_of_frame(uint16_t current_seq, bool marker_bit);
 double get_rtp_packet_time_adjust(rtp_stats_t *stats);
 
 // Function declarations
 void init_rtp_stats(rtp_stats_t *stats, int fps);
 void update_rtp_imu_stats(rtp_stats_t *stats, uint32_t num);
-void update_rtp_packet_stats(rtp_stats_t *stats, int valid);
+void update_rtp_packet_stats(rtp_stats_t *stats, int valid, ssize_t len);
 void update_rtp_interruption(rtp_stats_t *stats);
-void update_rtp_recv_len(rtp_stats_t *stats, ssize_t len);
 void update_rtp_head_stats(rtp_stats_t *stats);
 void update_rtp_body_stats(rtp_stats_t *stats);
 void print_rtp_stats(const rtp_stats_t *stats);
