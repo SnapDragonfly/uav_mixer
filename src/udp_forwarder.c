@@ -56,8 +56,8 @@ int initialize_udp_socket(uint16_t port) {
 
     // Set receive timeout for the socket
     struct timeval timeout;
-    timeout.tv_sec = 0;  // 0 seconds timeout
-    timeout.tv_usec = 1; // 0 microseconds timeout
+    timeout.tv_sec  = 0;   // 0 seconds timeout
+    timeout.tv_usec = 100; // 100 microseconds timeout
     if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
         perror("Failed to set socket options");
         close(sockfd);
