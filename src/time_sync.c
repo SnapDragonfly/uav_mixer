@@ -126,6 +126,11 @@ uint32_t calculate_timestamp(sync_time_t *sys) {
     // Convert time difference back to count difference using the clock frequency (convert from µs to clock cycles)
     double count_diff = (time_diff / 1000000.0) * sys->clock_hz;
 
+    // Debug output
+    //printf("Base time - sec: %ld, nsec: %ld\n", sync_time.tv_sec, sync_time.tv_nsec);
+    //printf("Curr time - sec: %ld, nsec: %ld\n", current_time.tv_sec, current_time.tv_nsec);
+    //printf("Calculated count diff: %f time diff: %f stamp: %f\n", count_diff, time_diff, count_diff + time_diff);
+
     // Calculate the estimated count and cast to uint32_t
     return (uint32_t)(sync_count + count_diff);
 }

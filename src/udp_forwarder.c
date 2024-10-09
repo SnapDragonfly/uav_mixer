@@ -56,8 +56,8 @@ int initialize_udp_socket(uint16_t port) {
 
     // Set receive timeout for the socket
     struct timeval timeout;
-    timeout.tv_sec  = 0;   // 0 seconds timeout
-    timeout.tv_usec = 100; // 100 microseconds timeout
+    timeout.tv_sec  = RTP_LOCAL_TO_SEC;
+    timeout.tv_usec = RTP_LOCAL_TO_USEC;
     if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
         perror("Failed to set socket options");
         close(sockfd);
@@ -164,6 +164,8 @@ void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port
                     last_rtp_time.tv_sec  = packet_time.tv_sec;
                     last_rtp_time.tv_nsec = packet_time.tv_nsec;
                 }
+
+                (void)time_minus_us(&packet_time, g_rtp_stats.rtp_max_delivery_per_frame);  // minus rtp_max_delivery_per_frame
             } else {
                 packet_time.tv_sec  = 0;
                 packet_time.tv_nsec = 0;
@@ -215,6 +217,15 @@ void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port
             }
 
             /*
+             * Sync T_m first time, important
+             */
+            if (packet_count == 1){
+                synchronize_time(&g_sync_time, GET_RTP_TIMESTAMP(buffer));
+                printf("%u sync first\n", GET_RTP_TIMESTAMP(buffer));
+            } 
+            packet_count++;
+
+            /*
              * RTP packet stats statistics
              */
             if(is_first_packet_of_frame(GET_RTP_SEQUENCE_NUMBER(buffer), GET_RTP_MARKER(buffer))){
@@ -223,23 +234,20 @@ void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port
                  * RTP video timestamp sync
                  */
                 unsigned int calculated_timestamp = calculate_timestamp(&g_sync_time);
-                int delta_timestamp = (int)(calculated_timestamp*1.0 - (int)GET_RTP_TIMESTAMP(buffer));
-                if (packet_count == 1){
-                    synchronize_time(&g_sync_time, GET_RTP_TIMESTAMP(buffer));
-                    printf("%u sync first\n", GET_RTP_TIMESTAMP(buffer));
-                } else if (packet_count % RTP_FRAME_SYNC_NUM == 0) {
+                int64_t delta_timestamp = (int64_t)(calculated_timestamp*1.0 - (int64_t)GET_RTP_TIMESTAMP(buffer));
+                //printf("%lld %u %u\n", delta_timestamp, calculated_timestamp, GET_RTP_TIMESTAMP(buffer));
+                if (packet_count % RTP_FRAME_SYNC_NUM == 0) {
                     if ( delta_timestamp < 0 || delta_timestamp > RTP_CLOCK_CTR_THRESHOLD){
                         packet_error++;
                         synchronize_time(&g_sync_time, GET_RTP_TIMESTAMP(buffer));
                         set_sync_status(&g_sync_time, false);
-                        printf("\033[1;31m%u sync(%u) delta(%u)\033[0m\n", 
-                               GET_RTP_SEQUENCE_NUMBER(buffer), GET_RTP_TIMESTAMP(buffer), delta_timestamp);
+                        printf("\033[1;31m%u sync(%u) delta(%lld) clock(%f)\033[0m\n", 
+                               GET_RTP_SEQUENCE_NUMBER(buffer), GET_RTP_TIMESTAMP(buffer), delta_timestamp, g_sync_time.clock_hz);
                     }else{
                         set_sync_status(&g_sync_time, true);
-                        //printf("%u mon %u vs %u --> delta %d\n", GET_RTP_SEQUENCE_NUMBER(buffer), GET_RTP_TIMESTAMP(buffer), (uint32_t)calculated_timestamp, delta_timestamp);
+                        //printf("%u mon %u vs %u --> delta %lld\n", GET_RTP_SEQUENCE_NUMBER(buffer), GET_RTP_TIMESTAMP(buffer), (uint32_t)calculated_timestamp, delta_timestamp);
                     }
                 }
-                packet_count++;
 
                 if(delta_timestamp < RTP_CLOCK_CTR_MIN_DELAY){
                     inc_sync_clock(&g_sync_time);

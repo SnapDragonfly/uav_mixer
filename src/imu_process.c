@@ -147,8 +147,9 @@ void mavlink_highres_imu(mav_stats_t *stats, mavlink_message_t* msg, mavlink_sta
 #if 1 
         struct timespec tv;
         clock_gettime(CLOCK_REALTIME, &tv);
-        pushed_data.imu_sec   = tv.tv_sec;           // Timestamp seconds
-        pushed_data.imu_nsec  = tv.tv_nsec;  // Timestamp nanoseconds
+        (void)time_minus_us(&tv, g_rtp_stats.rtp_max_delivery_per_frame);  // minus round trip time
+        pushed_data.imu_sec   = tv.tv_sec;
+        pushed_data.imu_nsec  = tv.tv_nsec;
 #else 
         int64_t ts_us = hr_imu.time_usec + stats->time_offset_us;
         pushed_data.imu_sec   = ts_us / 1000000;           // Timestamp seconds

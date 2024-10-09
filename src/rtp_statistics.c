@@ -218,11 +218,11 @@ void update_rtp_interruption(rtp_stats_t *stats) {
     double diff = (current_time.tv_sec - stats->rtp_last_time_of_begin_frame.tv_sec) * 1000000.0 
                 + (current_time.tv_usec - stats->rtp_last_time_of_begin_frame.tv_usec);
 
-    if(diff/2 > stats->frame_estimate_interval) {
+    if(diff > stats->frame_estimate_interval) {
         stats->rtp_packet_interrupted = true;
+    } else {
+        stats->rtp_packet_interrupted = false;
     }
-
-    stats->rtp_packet_interrupted = false;
 
     /*
      *
@@ -347,14 +347,14 @@ void print_rtp_stats(const rtp_stats_t *stats) {
     uint32_t frame_total = stats->frame_data_ontime_count+stats->frame_data_delay_count;
     printf("\n");
     printf("-- Summary ---------------\n");
-    printf("Max frame delivery time: %e\n", stats->rtp_max_delivery_per_frame);
-    printf("Min frame delivery time: %e\n", stats->rtp_min_delivery_per_frame);
-    printf("     Max frame gap time: %e\n", stats->rtp_max_gap_per_frame);
-    printf("     Min frame gap time: %e\n", stats->rtp_min_gap_per_frame);
-    printf("Max frame interval time: %e  -  %.02e Hz\n", stats->frame_max_interval, 1000000/stats->frame_max_interval);
-    printf("Min frame interval time: %e  -  %.02e Hz\n", stats->frame_min_interval, 1000000/stats->frame_min_interval);
-    printf("    Frame interval time: %e  -  %.02e Hz\n", stats->frame_estimate_interval, 1000000/stats->frame_estimate_interval);
-    printf("    Frame delayed count: %u\n", stats->frame_data_delay_count);
+    printf("Max frame delivery time: %e us\n", stats->rtp_max_delivery_per_frame);
+    printf("Min frame delivery time: %e us\n", stats->rtp_min_delivery_per_frame);
+    printf("     Max frame gap time: %e us\n", stats->rtp_max_gap_per_frame);
+    printf("     Min frame gap time: %e us\n", stats->rtp_min_gap_per_frame);
+    printf("Max frame interval time: %e us -  %.02e Hz\n", stats->frame_max_interval, 1000000/stats->frame_max_interval);
+    printf("Min frame interval time: %e us -  %.02e Hz\n", stats->frame_min_interval, 1000000/stats->frame_min_interval);
+    printf("    Frame interval time: %e us -  %.02e Hz\n", stats->frame_estimate_interval, 1000000/stats->frame_estimate_interval);
+    printf("  Frame presume delayed: %u\n", stats->frame_data_delay_count);
     printf("    Frame on-time count: %u\n", stats->frame_data_ontime_count);
     if (0 != frame_total) {
         printf("          Frame on-time: %u%%\n", 100*stats->frame_data_ontime_count/(stats->frame_data_ontime_count+stats->frame_data_delay_count));

@@ -10,6 +10,9 @@
 
 // UDP-RTP forward default configuration
 #define RTP_LOCAL_PORT           5400               //RTP Source
+#define RTP_LOCAL_TO_SEC         0                  //uav_mixer settings
+#define RTP_LOCAL_TO_USEC        1000               //uav_mixer settings
+
 #define FORWARD_IP               "192.168.1.19"     //Forward Destination IP
 #define FORWARD_PORT             5400               //Forward Destination Port
 
@@ -33,9 +36,9 @@
 #define RTP_CLOCK_INC_UNIT_HZ    10                 //uav_mixer settings
 #define RTP_CLOCK_DEC_UNIT_HZ    5                  //uav_mixer settings
 
-#define RTP_CLOCK_CTR_MIN_DELAY  500                // 100*~10us = 10ms
-#define RTP_CLOCK_CTR_MAX_DELAY  700                // 100*~10us = 100ms
-#define RTP_CLOCK_CTR_THRESHOLD  1000               //uav_mixer settings
+#define RTP_CLOCK_CTR_MIN_DELAY  500                // 100*~10us = 1ms
+#define RTP_CLOCK_CTR_MAX_DELAY  1500               // 1000*~10us = 10ms
+#define RTP_CLOCK_CTR_THRESHOLD  2000               //uav_mixer settings
 #if RTP_CLOCK_CTR_THRESHOLD < RTP_CLOCK_CTR_MAX_DELAY
     #error "RTP_CLOCK_CTR_THRESHOLD must be greater than RTP_CLOCK_CTR_MAX_DELAY"
 #endif
