@@ -151,18 +151,22 @@ void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port
             if(get_sync_status(&g_sync_time)) {
                 (void)estimate_time(&g_sync_time, &packet_time, GET_RTP_TIMESTAMP(buffer));
                 //printf("packet time - sec: %ld, nsec: %ld\n", packet_time.tv_sec, packet_time.tv_nsec);
-
-                //(void)time_minus_us(&packet_time, g_rtp_stats.frame_estimate_interval);
-
-                //(void)time_minus_us(&packet_time, RTP_FRAME_ADJUST_MS*1000);
-
                 if (is_before(&packet_time, &last_rtp_time)) {
                     //printf("\033[31mwarning %u time - sec: %ld, nsec: %ld\033[0m\n", GET_RTP_TIMESTAMP(buffer), packet_time.tv_sec, packet_time.tv_nsec);
                     packet_time.tv_sec  = last_rtp_time.tv_sec;
                     packet_time.tv_nsec = last_rtp_time.tv_nsec;
                 } else {
+#if 0
+                    packet_time.tv_sec  = 0;
+                    packet_time.tv_nsec = 0;
+#else
+                    struct timespec current_time;
+                    clock_gettime(CLOCK_REALTIME, &current_time);
+                    packet_time.tv_sec    = current_time.tv_sec;
+                    packet_time.tv_nsec   = current_time.tv_nsec;
                     last_rtp_time.tv_sec  = packet_time.tv_sec;
                     last_rtp_time.tv_nsec = packet_time.tv_nsec;
+#endif
                 }
 
                 (void)time_minus_us(&packet_time, g_rtp_stats.rtp_max_delivery_per_frame);  // minus rtp_max_delivery_per_frame
@@ -181,6 +185,12 @@ void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port
             if (0 != num) {
                 num = (num < FORWARD_RTP_IMU_NUM)? num: FORWARD_RTP_IMU_NUM;
                 p_buffer = RTP_BUFFER_ADDR(buffer) - sizeof(mix_head_t) - num*sizeof(imu_data_t);
+
+                /*
+                 * Worst case assumption
+                 */
+                (void)time_minus_us(&packet_time, g_rtp_stats.frame_estimate_interval);
+                (void)time_minus_us(&packet_time, RTP_FRAME_ADJUST_MS*1000);
 
                 mix_head_t* p_mixed_head = (mix_head_t*)p_buffer;
                 p_mixed_head->img_sec  = packet_time.tv_sec;
@@ -258,7 +268,9 @@ void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port
                 }else {
                     //printf("%u = timestamp: %u vs %u\n", GET_RTP_SEQUENCE_NUMBER(buffer), GET_RTP_TIMESTAMP(buffer), calculated_timestamp);
                 }
+                //printf("head-> seq(%u) timestamp: %u\n", GET_RTP_SEQUENCE_NUMBER(buffer), GET_RTP_TIMESTAMP(buffer));
             }else{
+                //printf("body-> seq(%u) timestamp: %u\n", GET_RTP_SEQUENCE_NUMBER(buffer), GET_RTP_TIMESTAMP(buffer));
                 update_rtp_body_stats(&g_rtp_stats); 
             }
         } else {
