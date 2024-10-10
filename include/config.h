@@ -25,7 +25,7 @@
 #define FORWARD_RTP_PREFIX_LEN   (FORWARD_RTP_IMU_LEN*FORWARD_RTP_IMU_NUM)
 
 // RTP FPS default configuration
-#define RTP_FPS_RATE             30                 //Hz
+#define RTP_FPS_RATE             15                 //Hz
 
 #define MAX_RTP_PACKETS          200                //uav_mixer settings
 #define MAX_FRAME_PER_SECOND     120                //uav_mixer settings
