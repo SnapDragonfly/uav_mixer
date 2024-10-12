@@ -210,6 +210,7 @@ void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port
                     offset += sizeof(imu_data_t);
                     len    += sizeof(imu_data_t);
                 }
+                update_rtp_imu_stats(&g_rtp_stats, num);
             } else {
                 p_buffer = RTP_BUFFER_ADDR(buffer) - sizeof(mix_head_t);
                 len = sizeof(mix_head_t);
