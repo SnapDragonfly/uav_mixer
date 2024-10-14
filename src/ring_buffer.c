@@ -21,6 +21,7 @@ bool push_rb(ring_buffer_t *rb, const imu_data_t *data) {
     if (rb->count >= MAX_RING_BUFFER_SIZE) {
         pthread_rwlock_unlock(&rwlock); // Unlock writer
         printf("Warning: Unable to push to buffer, maximum capacity reached!\n");
+        fflush(stdout);
         return false; // Buffer is full
     }
 

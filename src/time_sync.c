@@ -16,7 +16,6 @@ void init_sync_system(sync_time_t *sys, double clock_hz) {
         sys->sync_times[i].tv_nsec = 0;
         sys->sync_counts[i] = 0;
     }
-    sys->sync_ok = false;
 }
 
 // Function to increase sync clock to reduce err of SyncSystem
@@ -29,15 +28,6 @@ void inc_sync_clock(sync_time_t *sys) {
 void dec_sync_clock(sync_time_t *sys) {
     sys->clock_hz -= RTP_CLOCK_DEC_UNIT_HZ;
     //printf("-\n");
-}
-
-bool get_sync_status(sync_time_t *sys) {
-    return sys->sync_ok;
-}
-
-bool set_sync_status(sync_time_t *sys, bool status) {
-    sys->sync_ok = status;
-    return sys->sync_ok;
 }
 
 // Function to synchronize system time with the given count
@@ -104,6 +94,21 @@ struct timespec* estimate_time(sync_time_t *sys, struct timespec* estimated_time
     return estimated_time;
 }
 
+mix_timestamp_t* get_sync_cli(sync_time_t *sys, mix_timestamp_t *mix_cal){
+
+    if (sys->sample_count == 0) {
+        return NULL; // No sync data available
+    }
+    // Use the most recent sync data for estimation
+    int recent_index = (sys->sync_index - 1 + MAX_TIME_SYNC_SAMPLES) % MAX_TIME_SYNC_SAMPLES;
+
+    mix_cal->base_sec       = sys->sync_times[recent_index].tv_sec;
+    mix_cal->base_nsec      = sys->sync_times[recent_index].tv_nsec;
+    mix_cal->base_timestamp = sys->sync_counts[recent_index];
+
+    return mix_cal;
+}
+
 // Function to calculate the count based on the current system time
 uint32_t calculate_timestamp(sync_time_t *sys) {
     if (sys->sample_count == 0) {
@@ -135,15 +140,15 @@ uint32_t calculate_timestamp(sync_time_t *sys) {
     return (uint32_t)(sync_count + count_diff);
 }
 
-// Function to get the current system time in microseconds as a double
-struct timespec get_system_time_us() {
-    struct timespec current_time;
-
-    // Get the current time
-    clock_gettime(CLOCK_REALTIME, &current_time);
-
-    // Convert time to microseconds and return as double
-    return current_time;
+void calculate_time_difference(struct timespec *start, struct timespec *end, struct timespec *diff) {
+    // Calculate the difference
+    if ((end->tv_nsec - start->tv_nsec) < 0) {
+        diff->tv_sec = end->tv_sec - start->tv_sec - 1; // Subtract 1 second
+        diff->tv_nsec = 1000000000 + end->tv_nsec - start->tv_nsec; // Add nanoseconds
+    } else {
+        diff->tv_sec = end->tv_sec - start->tv_sec;
+        diff->tv_nsec = end->tv_nsec - start->tv_nsec;
+    }
 }
 
 bool is_before(struct timespec* estimated_time, struct timespec* current_time) {
@@ -177,4 +182,10 @@ struct timespec* time_minus_us(struct timespec *time, uint32_t us) {
     }
 
     return time;
+}
+
+long timespec_diff_us(struct timespec *start, struct timespec *end) {
+    long start_us = start->tv_sec * 1000000L + start->tv_nsec / 1000L;
+    long end_us = end->tv_sec * 1000000L + end->tv_nsec / 1000L;
+    return end_us - start_us;
 }

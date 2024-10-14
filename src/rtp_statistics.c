@@ -117,6 +117,16 @@ void print_fps_histogram(const rtp_stats_t *stats) {
 void init_rtp_stats(rtp_stats_t *stats, int fps) {
     stats->valid_count   = 0;
     stats->invalid_count = 0;
+
+    stats->send_buffer_max = 0;
+    stats->send_time_max   = 0;
+    stats->recv_time_max   = 0;
+
+    stats->rtp_sync_time_max     = 0;
+    stats->rtp_pack_a_time_max   = 0;
+    stats->rtp_pack_b_time_max   = 0;
+    stats->rtp_pack_c_time_max   = 0;
+
     stats->max_recv_len  = 0;
     stats->min_recv_len  = SSIZE_MAX;
     stats->packet_distribution_overflow = 0;
@@ -161,7 +171,58 @@ void init_rtp_stats(rtp_stats_t *stats, int fps) {
     stats->rtp_max_imu_per_frame        = 0;
     stats->rtp_min_imu_per_frame        = UINT16_MAX;
 
+    stats->rtp_imu_plus_img_count                = 0;
+    stats->rtp_max_imu_plus_img_per_frame        = 0;
+    stats->rtp_min_imu_plus_img_per_frame        = UINT16_MAX;
+
+    stats->rtp_imu_invalid_img_count              = 0;
+    stats->rtp_max_imu_invalid_img_per_frame      = 0;
+    stats->rtp_min_imu_invalid_img_per_frame      = UINT16_MAX;
+
+
     stats->rtp_packet_interrupted       = true;
+}
+
+void update_rtp_send_buffer_size(rtp_stats_t *stats, int size) {
+    if (size > stats->send_buffer_max) {
+        stats->send_buffer_max = size;
+    }
+}
+
+void update_rtp_send_time(rtp_stats_t *stats, long diff) {
+    if (diff > stats->send_time_max) {
+        stats->send_time_max = diff;
+    }
+}
+
+void update_rtp_recv_time(rtp_stats_t *stats, long diff) {
+    if (diff > stats->recv_time_max) {
+        stats->recv_time_max = diff;
+    }
+}
+
+void update_rtp_sync_time(rtp_stats_t *stats, long diff) {
+    if (diff > stats->rtp_sync_time_max) {
+        stats->rtp_sync_time_max = diff;
+    }
+}
+
+void update_rtp_pack_a_time(rtp_stats_t *stats, long diff) {
+    if (diff > stats->rtp_pack_a_time_max) {
+        stats->rtp_pack_a_time_max = diff;
+    }
+}
+
+void update_rtp_pack_b_time(rtp_stats_t *stats, long diff) {
+    if (diff > stats->rtp_pack_b_time_max) {
+        stats->rtp_pack_b_time_max = diff;
+    }
+}
+
+void update_rtp_pack_c_time(rtp_stats_t *stats, long diff) {
+    if (diff > stats->rtp_pack_c_time_max) {
+        stats->rtp_pack_c_time_max = diff;
+    }
 }
 
 bool is_valid_rtp_packet(const uint8_t *data, size_t length) {
@@ -172,11 +233,35 @@ bool is_valid_rtp_packet(const uint8_t *data, size_t length) {
     const rtp_header_t *header = (const rtp_header_t *)data;
 
     // Check RTP version (should be 2)
-    if ((header->version & 0xC0) >> 6 != 2) {
+    if ((header->version & 0x03) != 2) { // Only the last 2 bits for version
         return false; // Invalid RTP version
     }
 
-    // Additional checks can be added here
+    // Check for valid payload type (0-127 are standard types)
+    if (header->payload_type > 127) {
+        return false; // Invalid payload type
+    }
+
+    // Check if padding is set
+    if (header->padding) {
+        // Ensure there are enough bytes for the RTP header + padding length
+        if (length < sizeof(rtp_header_t)) {
+            return false; // Not enough data for the header
+        }
+        // The padding length is determined by the last byte of the packet
+        uint8_t padding_length = data[length - 1]; // Last byte for padding length
+        if (length < sizeof(rtp_header_t) + padding_length) {
+            return false; // Not enough data for padding
+        }
+    }
+
+    // Check the CSRC count and ensure it does not exceed the packet length
+    size_t csrc_count = header->cc;
+    if (length < sizeof(rtp_header_t) + (csrc_count * sizeof(uint32_t))) {
+        return false; // Packet too short for CSRC identifiers
+    }
+
+    // Additional checks can be added here (e.g., for sequence number, timestamp)
 
     return true; // Valid RTP packet
 }
@@ -200,6 +285,26 @@ void update_rtp_imu_stats(rtp_stats_t *stats, uint32_t num) {
     }
     if (num < stats->rtp_min_imu_per_frame) {
         stats->rtp_min_imu_per_frame = num;
+    }
+}
+
+void update_rtp_imu_plus_img_stats(rtp_stats_t *stats, uint32_t num) {
+    stats->rtp_imu_plus_img_count++;
+    if (num > stats->rtp_max_imu_plus_img_per_frame) {
+        stats->rtp_max_imu_plus_img_per_frame = num;
+    }
+    if (num < stats->rtp_min_imu_plus_img_per_frame) {
+        stats->rtp_min_imu_plus_img_per_frame = num;
+    }
+}
+
+void update_rtp_imu_invalid_img_stats(rtp_stats_t *stats, uint32_t num) {
+    stats->rtp_imu_invalid_img_count++;
+    if (num > stats->rtp_max_imu_invalid_img_per_frame) {
+        stats->rtp_max_imu_invalid_img_per_frame = num;
+    }
+    if (num < stats->rtp_min_imu_invalid_img_per_frame) {
+        stats->rtp_min_imu_invalid_img_per_frame = num;
     }
 }
 
@@ -364,29 +469,41 @@ void print_rtp_stats(const rtp_stats_t *stats) {
     printf("    Total min RTP packets: %u\n", stats->rtp_min_packets_per_frame);
     printf("  Total valid RTP packets: %u\n", stats->valid_count);
     printf("Total invalid RTP packets: %u\n", stats->invalid_count);
-    printf("    Total IMU RTP packets: %u\n", stats->rtp_imu_count);
-    printf("     Max IMU packet count: %u\n", stats->rtp_max_imu_per_frame);
-    printf("     Min IMU packet count: %u\n", stats->rtp_min_imu_per_frame);
     printf("    Max RTP packet length: %u\n", stats->max_recv_len);
     printf("    Min RTP packet length: %u\n", stats->min_recv_len);
     printf("  Max RTP packet overflow: %u\n", stats->packet_distribution_overflow);
     printf("     RTP packet threshold: %u\n", stats->rtp_packets_safe_threshold);
     printf("      RTP packet max peak: %u\n", stats->rtp_packets_max_peak_bucket);
+    printf("--------------------------\n");
+    printf(" RTP send buffer max size: %d bytes\n", stats->send_buffer_max);
+    printf("   RTP send time max diff: %ld us\n", stats->send_time_max);
+    printf("   RTP recv time max diff: %ld us\n", stats->recv_time_max);
 
-#if 0
-    printf("RTP packets distribution:\n");
-    for (int i = 0; i <= MAX_RTP_PACKETS; i++) {
-        printf("%02d RTP packets: %u\n", i, stats->packet_distribution[i]);
-    }
-#else
+    printf("        RTP sync max diff: %ld us\n", stats->rtp_sync_time_max);
+    printf("      RTP pack a max diff: %ld us\n", stats->rtp_pack_a_time_max);
+    printf("      RTP pack b max diff: %ld us\n", stats->rtp_pack_b_time_max);
+    printf("      RTP pack c max diff: %ld us\n", stats->rtp_pack_c_time_max);
+  
+    printf("--------------------------\n");
+    printf("    Total IMU RTP packets: %u\n", stats->rtp_imu_count);
+    printf("     Max IMU packet count: %u\n", stats->rtp_max_imu_per_frame);
+    printf("     Min IMU packet count: %u\n", stats->rtp_min_imu_per_frame);
+
+    printf("Total IMU+IMG RTP packets: %u\n", stats->rtp_imu_plus_img_count);
+    printf(" Max IMU+IMG packet count: %u\n", stats->rtp_max_imu_plus_img_per_frame);
+    printf(" Min IMU+IMG packet count: %u\n", stats->rtp_min_imu_plus_img_per_frame);
+
+    printf("Total IMU+INV RTP packets: %u\n", stats->rtp_imu_invalid_img_count);
+    printf(" Max IMU+INV packet count: %u\n", stats->rtp_max_imu_invalid_img_per_frame);
+    printf(" Min IMU+INV packet count: %u\n", stats->rtp_min_imu_invalid_img_per_frame);
+    printf("--------------------------\n");
     print_rtp_packet_histogram(stats);
-#endif
     printf("--------------------------\n");
     print_fps_histogram(stats);
     printf("--------------------------\n");
 }
 
-bool is_first_packet_of_frame(uint16_t current_seq, bool marker_bit) {
+bool is_first_packet_of_frame(uint16_t current_seq, bool marker_bit, bool* packet_lost) {
     // Static variables to store the previous sequence number and marker bit
     static uint16_t previous_seq = 0;
     static bool previous_marker_bit = false;
@@ -394,12 +511,14 @@ bool is_first_packet_of_frame(uint16_t current_seq, bool marker_bit) {
 
     // Check if this is the first packet of a new frame
     bool is_first_packet = false;
+    *packet_lost = false;
 
     // Detect packet loss (if previous sequence number + 1 != current sequence number)
     if (first_packet_checked) {
         // Check for packet loss, considering wrap-around
         if ((current_seq != (previous_seq + 1)) && !(previous_seq == 65535 && current_seq == 0)) {
-            printf("\033[31mPacket loss detected! Expected sequence number: %d, but got: %d\033[0m\n", (previous_seq + 1) % 65536, current_seq);
+            *packet_lost = true;
+            //printf("\033[31mPacket loss detected! Expected sequence number: %d, but got: %d\033[0m\n", (previous_seq + 1) % 65536, current_seq);
         }
     }
 

@@ -11,18 +11,28 @@
 // UDP-RTP forward default configuration
 #define RTP_LOCAL_PORT           5400               //RTP Source
 #define RTP_LOCAL_TO_SEC         0                  //uav_mixer settings
-#define RTP_LOCAL_TO_USEC        1000               //uav_mixer settings
+#define RTP_LOCAL_TO_USEC        2000              //uav_mixer settings
 
 #define FORWARD_IP               "192.168.1.19"     //Forward Destination IP
 #define FORWARD_PORT             5400               //Forward Destination Port
+#define FORWARD_BUF_LEN          1472               //uav_mixer settings, 1500 - 20 - 8 = 1472
+#define FORWARD_RTP_BUF_LEN      1400               //uav_mixer settings
 
-#define FORWARD_BUF_LEN          4096               //uav_mixer settings
+#define FORWARD_RECV_BUF_SIZE    64                 //uav_mixer settings, MB
+#define FORWARD_SEND_BUF_SIZE    64                 //uav_mixer settings, MB
 
-#define FORWARD_RTP_IMU_NUM      10                  //uav_mixer settings, RPi3B+ 10 for try
-#define FORWARD_RTP_IMG_LEN      12                  //sizeof(mix_head_t)
-#define FORWARD_RTP_IMU_LEN      48                  //sizeof(imu_data_t)
-#define FORWARD_RTP_MIX_LEN      (FORWARD_RTP_IMG_LEN+ FORWARD_RTP_IMU_NUM*FORWARD_RTP_IMU_LEN)
-#define FORWARD_RTP_PREFIX_LEN   (FORWARD_RTP_IMU_LEN*FORWARD_RTP_IMU_NUM)
+#define FORWARD_RECV_BUF_LEN     (1024*1024*FORWARD_RECV_BUF_SIZE)  //1024x1024 - M
+#define FORWARD_SEND_BUF_LEN     (1024*1024*FORWARD_SEND_BUF_SIZE)  //1024x1024 - M
+
+#define FORWARD_RTP_IMU_NUM      1                   //uav_mixer settings, RPi3B+ 10 for try , 25x48=1200 bytes
+#define FORWARD_RTP_IMG_SIZE     16                  //sizeof(mix_head_t)
+#define FORWARD_RTP_IMU_SIZE     48                  //sizeof(imu_data_t)
+#define FORWARD_RTP_IMU_LEN      (FORWARD_RTP_IMU_SIZE * FORWARD_RTP_IMU_NUM)
+#define FORWARD_RTP_MIX_LEN      (FORWARD_RTP_IMG_SIZE + FORWARD_RTP_IMU_LEN)
+
+#if FORWARD_BUF_LEN - FORWARD_RTP_MIX_LEN < FORWARD_RTP_BUF_LEN
+    #error "Need enough buffer size for RTP image buffer."
+#endif
 
 // RTP FPS default configuration
 #define RTP_FPS_RATE             15                 //Hz
@@ -39,27 +49,27 @@
 #define RTP_CLOCK_CTR_MIN_DELAY  500                // 100*~10us = 1ms
 #define RTP_CLOCK_CTR_MAX_DELAY  1500               // 1000*~10us = 10ms
 #define RTP_CLOCK_CTR_THRESHOLD  2000               //uav_mixer settings
+
 #if RTP_CLOCK_CTR_THRESHOLD < RTP_CLOCK_CTR_MAX_DELAY
     #error "RTP_CLOCK_CTR_THRESHOLD must be greater than RTP_CLOCK_CTR_MAX_DELAY"
 #endif
 
-#define RTP_FRAME_SYNC_NUM       10                 //uav_mixer settings
-#define RTP_FPS_UPDATE_RATE      (RTP_FPS_RATE*20)  //uav_mixer settings
-#define RTP_FRAME_ADJUST_MS      0                  //uav_mixer settings, RPi3B+ OV5647
-
 #define MAX_TIME_SYNC_SAMPLES    10                 //uav_mixer settings
 
 // Compile-time check
-#define RTP_FRAME_IMU_NUM        50                 //uav_mixer settings, 25x56=25*7*8=1400 bytes
-#if (FORWARD_BUF_LEN / FORWARD_RTP_IMU_LEN) <= RTP_FRAME_IMU_NUM
-    #error "FORWARD_BUF_LEN / FORWARD_RTP_IMU_LEN must be greater than RTP_FRAME_IMU_NUM"
+#define RTP_FRAME_IMU_NUM        28                 //uav_mixer settings, 28x48=1344 bytes
+#define RTP_FRAME_IMU_MIN_NUM    5                  //uav_mixer settings, 5x48+16=256 bytes
+#if ((FORWARD_BUF_LEN - FORWARD_RTP_IMU_NUM) / FORWARD_RTP_IMU_SIZE) <= RTP_FRAME_IMU_NUM
+    #error "FORWARD_BUF_LEN / FORWARD_RTP_IMU_SIZE must be greater than RTP_FRAME_IMU_NUM"
 #endif
 
 // UART IMU default configuration
 #define UART_DEVICE              "/dev/ttyUSB0"     //device
 #define UART_BAUDRATE            921600             //921600, recommended
 #define UART_BUF_LEN             1024               //uav_mixer settings
-#define UART_BUF_SLEEP_US        5000               //uav_mixer settings
+
+#define UART_TO_SEC              1                  //uav_mixer settings
+#define UART_TO_USEC             0                  //uav_mixer settings
 
 #define MAVLINK_DEFAULT_COMP_ID  191                //uav_mixer settings
 #define MAVLINK_DEFAULT_FREQ     100                //uav_mixer settings
@@ -70,6 +80,12 @@
 #define TEST_SPOT_ALTITUDE       4380               //test spot, user defined
 
 // Define the maximum size of the ring buffer
-#define MAX_RING_BUFFER_SIZE     20                 //uav_mixer settings
+#define MAX_RING_BUFFER_SIZE     50                 //uav_mixer settings
+
+#ifdef __GNUC__
+#define UNUSED(x) (void)(x)
+#else
+#define UNUSED(x) (void)(x)  // Add different handling for other compilers if needed
+#endif
 
 #endif /* UAV_MIXER_CONFIG_H */

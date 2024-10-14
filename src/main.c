@@ -2,6 +2,8 @@
 #include <unistd.h>
 #include <signal.h>
 #include <pthread.h>
+#include <errno.h>
+#include <sys/resource.h>
 
 #include "udp_forwarder.h"
 #include "uart_imu.h"
@@ -24,16 +26,68 @@ void handle_sigint(int signo) {
 
 // Thread function for forwarding UDP packets
 void* udp_forward_thread(void* arg) {
+    pthread_t thread = pthread_self();  // Get the current thread ID
+    int policy;
+    struct sched_param param;
+
+#if 0
+    // Set the thread's scheduling policy and priority
+    param.sched_priority = 90;  // Set the priority
+    if (pthread_setschedparam(thread, SCHED_FIFO, &param) != 0) {
+        perror("Failed to set thread scheduling parameters");
+        return NULL;
+    }
+#endif
+    // Get the current thread's scheduling policy and priority
+    if (pthread_getschedparam(thread, &policy, &param) != 0) {
+        perror("Failed to get thread scheduling parameters");
+        return NULL;
+    }
+
+    // Print the current thread's scheduling policy and priority
+    printf("udp_forward_thread policy: %s\n", 
+           (policy == SCHED_FIFO) ? "SCHED_FIFO" :
+           (policy == SCHED_RR) ? "SCHED_RR" :
+           (policy == SCHED_OTHER) ? "SCHED_OTHER" : "UNKNOWN");
+    printf("udp_forward_thread priority: %d\n", param.sched_priority);
+
     int local_socket = *(int*)arg; // Get the socket from the argument
-    forward_udp_packets(local_socket, FORWARD_IP, FORWARD_PORT);
+    get_rtp_data(local_socket, FORWARD_IP, FORWARD_PORT);
+
     close(local_socket);
     return NULL;
 }
 
 // UART thread function for getting imu sensor data
 void* uart_imu_thread(void* arg) {
+    pthread_t thread = pthread_self();  // Get the current thread ID
+    int policy;
+    struct sched_param param;
+
+#if 0
+    // Set the thread's scheduling policy and priority
+    param.sched_priority = 10;  // Set the priority
+    if (pthread_setschedparam(thread, SCHED_FIFO, &param) != 0) {
+        perror("Failed to set thread scheduling parameters");
+        return NULL;
+    }
+#endif
+    // Get the current thread's scheduling policy and priority
+    if (pthread_getschedparam(thread, &policy, &param) != 0) {
+        perror("Failed to get thread scheduling parameters");
+        return NULL;
+    }
+
+    // Print the current thread's scheduling policy and priority
+    printf("uart_imu_thread policy: %s\n", 
+           (policy == SCHED_FIFO) ? "SCHED_FIFO" :
+           (policy == SCHED_RR) ? "SCHED_RR" :
+           (policy == SCHED_OTHER) ? "SCHED_OTHER" : "UNKNOWN");
+    printf("uart_imu_thread priority: %d\n", param.sched_priority);
+
     int uart_fd = *((int*)arg);
     get_imu_data(uart_fd);
+
     close(uart_fd);
     return NULL;
 }
@@ -42,21 +96,21 @@ int main() {
     // Register the signal handler for SIGINT (CTRL+C)
     signal(SIGINT, handle_sigint);
 
-    if (FORWARD_RTP_IMU_LEN != sizeof(imu_data_t)) {
+    if (FORWARD_RTP_IMU_SIZE != sizeof(imu_data_t)) {
         perror("Fatal error: imu_data_t, check hardware/gcc compatibility!\n");
         return 1;
     }
 
-    if (FORWARD_RTP_IMG_LEN != sizeof(mix_head_t)) {
+    if (FORWARD_RTP_IMG_SIZE != sizeof(mix_head_t)) {
         perror("Fatal error: mix_head_t, check hardware/gcc compatibility!\n");
         return 1;
     }
-
 
     (void)initialize_mavlink(&g_mav_stats, MAVLINK_DEFAULT_FREQ);  //Initialize MAVLink handler
     (void)init_rtp_stats(&g_rtp_stats, RTP_FPS_RATE);              // Initialize RTP statistics
     (void)init_sync_system(&g_sync_time, RTP_CLOCK_FREQ_HZ);       // Initialize with a clock frequency
     (void)init_rb(&g_ring_buff);
+
 
     // Initialize UDP socket
     int local_socket = initialize_udp_socket(RTP_LOCAL_PORT);
@@ -90,7 +144,7 @@ int main() {
     while (running) {
         update_rtp_interruption(&g_rtp_stats);
         // Optionally, you can add a sleep here to reduce CPU usage
-        sleep(1); // Sleep for 1s
+        sleep(1); // Sleep for 1 second
     }
 
     // Wait for the forwarding and UART threads to finish

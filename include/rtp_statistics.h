@@ -8,17 +8,16 @@
 
 #include "config.h"
 
-// RTP Header
 typedef struct {
-    uint8_t version;     // RTP version (2 bits)
-    uint8_t padding;     // Padding flag (1 bit)
-    uint8_t extension;   // Extension flag (1 bit)
-    uint8_t cc;          // CSRC count (4 bits)
-    uint8_t marker;      // Marker bit (1 bit)
-    uint8_t payload_type; // Payload type (7 bits)
+    uint8_t cc : 4;          // CSRC count (4 bits)
+    uint8_t extension : 1;   // Extension flag (1 bit)
+    uint8_t padding : 1;     // Padding flag (1 bit)
+    uint8_t version : 2;     // RTP version (2 bits)
+    uint8_t payload_type : 7; // Payload type (7 bits)
+    uint8_t marker : 1;      // Marker bit (1 bit)
     uint16_t sequence_number; // Sequence number (16 bits)
-    uint32_t timestamp;  // Timestamp (32 bits)
-    uint32_t ssrc;       // SSRC identifier (32 bits)
+    uint32_t timestamp;      // Timestamp (32 bits)
+    uint32_t ssrc;           // SSRC identifier (32 bits)
 } rtp_header_t;
 
 /*
@@ -44,9 +43,27 @@ typedef struct {
 typedef struct {
     uint32_t valid_count;   // Count of valid RTP packets
     uint32_t invalid_count; // Count of invalid RTP packets
+
+    int send_buffer_max;
+    long send_time_max;
+    long recv_time_max;
+
+    long rtp_sync_time_max;
+    long rtp_pack_a_time_max;
+    long rtp_pack_b_time_max;
+    long rtp_pack_c_time_max;
+
     uint32_t rtp_imu_count;
     uint16_t rtp_max_imu_per_frame;
     uint16_t rtp_min_imu_per_frame;
+
+    uint32_t rtp_imu_plus_img_count;
+    uint16_t rtp_max_imu_plus_img_per_frame;
+    uint16_t rtp_min_imu_plus_img_per_frame;
+
+    uint32_t rtp_imu_invalid_img_count;
+    uint16_t rtp_max_imu_invalid_img_per_frame;
+    uint16_t rtp_min_imu_invalid_img_per_frame;
 
     ssize_t  max_recv_len;  // Max received length
     ssize_t  min_recv_len;  // Min received length
@@ -81,12 +98,23 @@ typedef struct {
 
 bool is_valid_rtp_packet(const uint8_t *data, size_t length);
 bool is_rtp_packet_interrupted(rtp_stats_t *stats);
-bool is_first_packet_of_frame(uint16_t current_seq, bool marker_bit);
+bool is_first_packet_of_frame(uint16_t current_seq, bool marker_bit, bool* packet_lost);
 double get_rtp_packet_time_adjust(rtp_stats_t *stats);
 
 // Function declarations
 void init_rtp_stats(rtp_stats_t *stats, int fps);
+
+void update_rtp_send_buffer_size(rtp_stats_t *stats, int size);
+void update_rtp_send_time(rtp_stats_t *stats, long diff);
+void update_rtp_recv_time(rtp_stats_t *stats, long diff);
+void update_rtp_sync_time(rtp_stats_t *stats, long diff);
+void update_rtp_pack_a_time(rtp_stats_t *stats, long diff);
+void update_rtp_pack_b_time(rtp_stats_t *stats, long diff);
+void update_rtp_pack_c_time(rtp_stats_t *stats, long diff);
+
 void update_rtp_imu_stats(rtp_stats_t *stats, uint32_t num);
+void update_rtp_imu_plus_img_stats(rtp_stats_t *stats, uint32_t num);
+void update_rtp_imu_invalid_img_stats(rtp_stats_t *stats, uint32_t num);
 void update_rtp_packet_stats(rtp_stats_t *stats, int valid, ssize_t len);
 void update_rtp_interruption(rtp_stats_t *stats);
 void update_rtp_head_stats(rtp_stats_t *stats);

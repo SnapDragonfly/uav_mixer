@@ -10,6 +10,6 @@
 
 // Function declarations
 int initialize_udp_socket(uint16_t port);
-void forward_udp_packets(int local_socket, char *remote_ip, uint16_t remote_port);
+void get_rtp_data(int local_socket, char *remote_ip, uint16_t remote_port);
 
 #endif // UDP_FORWARDER_H

@@ -81,8 +81,8 @@ void get_imu_data(int uart_fd) {
         FD_SET(uart_fd, &read_fds);
 
         // Set timeout (2 seconds???)
-        timeout.tv_sec = 2;
-        timeout.tv_usec = 0;
+        timeout.tv_sec  = UART_TO_SEC;
+        timeout.tv_usec = UART_TO_USEC;
 
         // Wait for data to be available on the UART (blocking or with timeout)
         int ret = select(uart_fd + 1, &read_fds, NULL, NULL, &timeout);
@@ -105,11 +105,17 @@ void get_imu_data(int uart_fd) {
             }
         } else if (ret == 0) {
             // Timeout occurred, no data received
-            printf("UART read timeout\n");
+            //printf("UART read timeout\n");
         } else if (ret == -1) {
             // Error occurred in select
-            perror("select error");
-            continue;
+            if (errno == EINTR) {
+                // The select was interrupted by a signal, continue the loop and try again
+                continue;
+            } else {
+                // Handle other errors
+                perror("select error");
+                continue;
+            }
         }
     }
 }

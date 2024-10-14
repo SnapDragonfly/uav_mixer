@@ -78,14 +78,14 @@ void mavlink_heartbeat(mav_stats_t *stats, mavlink_message_t* msg, mavlink_statu
         mavlink_msg_command_long_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, 0, MAV_CMD_SET_MESSAGE_INTERVAL, 0, MAVLINK_MSG_ID_HIGHRES_IMU, stats->update_interval, 0, 0, 0, 0, 0);
         len = mavlink_msg_to_send_buffer(&buffer[0], msg);
         write(uart_fd, buffer, len);
-        printf("HIGHRES_IMU set interval %0.2fus\n", stats->update_interval);
+        //printf("HIGHRES_IMU set interval %0.2fus\n", stats->update_interval);
     }
 
     if (stats->no_att_q) {
         mavlink_msg_command_long_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, 0, MAV_CMD_SET_MESSAGE_INTERVAL, 0, MAVLINK_MSG_ID_ATTITUDE_QUATERNION, stats->update_interval, 0, 0, 0, 0, 0);
         len = mavlink_msg_to_send_buffer(&buffer[0], msg);
         write(uart_fd, buffer, len);
-        printf("ATTITUDE_QUATERNION set interval %0.2fus\n", stats->update_interval);
+        //printf("ATTITUDE_QUATERNION set interval %0.2fus\n", stats->update_interval);
     }
 
     if (hb.custom_mode == COPTER_MODE_GUIDED) {
@@ -133,10 +133,6 @@ void mavlink_statustext(mav_stats_t *stats, mavlink_message_t* msg, mavlink_stat
 
 void mavlink_highres_imu(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
 
-    if(!get_sync_status(&g_sync_time)) {
-        return;
-    }
-
     mavlink_highres_imu_t hr_imu;
     mavlink_msg_highres_imu_decode(msg, &hr_imu);
 
@@ -147,7 +143,7 @@ void mavlink_highres_imu(mav_stats_t *stats, mavlink_message_t* msg, mavlink_sta
 #if 1 
         struct timespec tv;
         clock_gettime(CLOCK_REALTIME, &tv);
-        (void)time_minus_us(&tv, g_rtp_stats.rtp_max_delivery_per_frame);  // minus round trip time
+        //(void)time_minus_us(&tv, stats->time_offset_us);  // minus round trip time
         pushed_data.imu_sec   = tv.tv_sec;
         pushed_data.imu_nsec  = tv.tv_nsec;
 #else 
@@ -190,17 +186,17 @@ void mavlink_highres_imu(mav_stats_t *stats, mavlink_message_t* msg, mavlink_sta
             int64_t effective_hz = 1000000/(hr_imu.time_usec - stats->last_us);
 
             if (effective_hz >= 0.9*stats->update_rate && effective_hz <= 1.5*stats->update_rate){
-                printf("MAVLINK_MSG_ID_HIGHRES_IMU frequency = %lldHz, should be %0.2fHz\n", 
-                            effective_hz, 
-                            stats->update_rate);
+                //printf("MAVLINK_MSG_ID_HIGHRES_IMU frequency = %lldHz, should be %0.2fHz\n", 
+                //            effective_hz, 
+                //            stats->update_rate);
                 
                 stats->no_hr_imu = false;
                 stats->no_att_q = false;
                 effective_rate = stats->update_rate * 5;
             } else {
-                printf("MAVLINK_MSG_ID_HIGHRES_IMU frequency = %lldHz, should be %0.2fHz\n", 
-                            effective_hz, 
-                            stats->update_rate);
+                //printf("MAVLINK_MSG_ID_HIGHRES_IMU frequency = %lldHz, should be %0.2fHz\n", 
+                //            effective_hz, 
+                //            stats->update_rate);
                 
                 stats->no_hr_imu = true;
                 stats->no_att_q = true;
@@ -212,10 +208,6 @@ void mavlink_highres_imu(mav_stats_t *stats, mavlink_message_t* msg, mavlink_sta
 }
 
 void mavlink_attitude_quaternion(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
-
-    if(!get_sync_status(&g_sync_time)) {
-        return;
-    }
 
     mavlink_attitude_quaternion_t att_q;
     mavlink_msg_attitude_quaternion_decode(msg, &att_q);
