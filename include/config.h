@@ -2,31 +2,37 @@
 #define UAV_MIXER_CONFIG_H
 
 // Global configuration
-#define UAV_MIXER_DEBUG          0                  //uav_mixer settings, used by developer
+#define UAV_MIXER_DEBUG          0                                  //uav_mixer settings, used by developer
 
 // UDP-control default configuration
-#define CTL_LOCAL_PORT           5401               //uav_mixer settings
-#define CTL_BUF_LEN              1024               //uav_mixer settings
+#define CTL_LOCAL_PORT           5401                               //uav_mixer settings
+#define CTL_BUF_LEN              1024                               //uav_mixer settings
 
 // UDP-RTP forward default configuration
-#define RTP_LOCAL_PORT           5400               //RTP Source
-#define RTP_LOCAL_TO_SEC         0                  //uav_mixer settings
-#define RTP_LOCAL_TO_USEC        2000              //uav_mixer settings
+#define RTP_LOCAL_PORT           5400                               //RTP Source
+#define RTP_LOCAL_TO_SEC         0                                  //uav_mixer settings
+#define RTP_LOCAL_TO_USEC        2000                               //uav_mixer settings
 
-#define FORWARD_IP               "192.168.1.19"     //Forward Destination IP
-#define FORWARD_PORT             5400               //Forward Destination Port
-#define FORWARD_BUF_LEN          1472               //uav_mixer settings, 1500 - 20 - 8 = 1472
-#define FORWARD_RTP_BUF_LEN      1400               //uav_mixer settings
+#define FORWARD_IP               "127.0.0.1"                     //Forward Destination IP
+#define FORWARD_PORT             5600                               //Forward Destination Port
 
-#define FORWARD_RECV_BUF_SIZE    64                 //uav_mixer settings, MB
-#define FORWARD_SEND_BUF_SIZE    64                 //uav_mixer settings, MB
+/*
+ * WIFI_MTU  4045  // Max injected packet size including all wfb-headers. 
+ * https://github.com/svpcom/wfb-ng/issues/371
+ */
+#define FORWARD_MTU_LEN          4045                               //uav_mixer settings, traditional IP MTU 1500
+#define FORWARD_BUF_LEN          (FORWARD_MTU_LEN - 20 - 8)         //uav_mixer settings, 1500 - 20 - 8 = 1472
+#define FORWARD_RTP_BUF_LEN      1400                               //uav_mixer settings
+
+#define FORWARD_RECV_BUF_SIZE    64                                 //uav_mixer settings, MB
+#define FORWARD_SEND_BUF_SIZE    64                                 //uav_mixer settings, MB
 
 #define FORWARD_RECV_BUF_LEN     (1024*1024*FORWARD_RECV_BUF_SIZE)  //1024x1024 - M
 #define FORWARD_SEND_BUF_LEN     (1024*1024*FORWARD_SEND_BUF_SIZE)  //1024x1024 - M
 
-#define FORWARD_RTP_IMU_NUM      1                   //uav_mixer settings, RPi3B+ 10 for try , 25x48=1200 bytes
-#define FORWARD_RTP_IMG_SIZE     16                  //sizeof(mix_head_t)
-#define FORWARD_RTP_IMU_SIZE     48                  //sizeof(imu_data_t)
+#define FORWARD_RTP_IMU_NUM      1                                  //uav_mixer settings, RPi3B+ 10 for try , 25x48=1200 bytes
+#define FORWARD_RTP_IMG_SIZE     16                                 //sizeof(mix_head_t)
+#define FORWARD_RTP_IMU_SIZE     48                                 //sizeof(imu_data_t)
 #define FORWARD_RTP_IMU_LEN      (FORWARD_RTP_IMU_SIZE * FORWARD_RTP_IMU_NUM)
 #define FORWARD_RTP_MIX_LEN      (FORWARD_RTP_IMG_SIZE + FORWARD_RTP_IMU_LEN)
 
@@ -64,7 +70,7 @@
 #endif
 
 // UART IMU default configuration
-#define UART_DEVICE              "/dev/ttyUSB0"     //device
+#define UART_DEVICE              "/dev/ttyS2"       //device: /dev/ttyUSB0
 #define UART_BAUDRATE            921600             //921600, recommended
 #define UART_BUF_LEN             1024               //uav_mixer settings
 

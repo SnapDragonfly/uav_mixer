@@ -186,6 +186,11 @@ void forward_udp_packets(int local_socket, const void *buf, size_t len, char mar
     update_rtp_send_time(&g_rtp_stats, timespec_diff_us(&p1, &p2));
 }
 
+/*
+ * Procedure A: Only IMU data
+ * There are amount of IMU data, but RTP transfer is limited.
+ * When data number is large than RTP_FRAME_IMU_MIN_NUM, then make the UDP transfer.
+ */
 char* pack_a_udp_packet(char *buffer, size_t *len) {
     struct timespec p1, p2;
     clock_gettime(CLOCK_REALTIME, &p1);
@@ -227,6 +232,10 @@ char* pack_a_udp_packet(char *buffer, size_t *len) {
     return NULL;    
 }
 
+/*
+ * Procedure B: IMU + IMG data
+ * Handle RTP image data, and IMU can accompanied also.
+ */
 char* pack_b_udp_packet(char *buffer, size_t *len, bool first_rtp) {
     struct timespec p1, p2;
     clock_gettime(CLOCK_REALTIME, &p1);
@@ -284,6 +293,11 @@ char* pack_b_udp_packet(char *buffer, size_t *len, bool first_rtp) {
     return p_buffer;
 }
 
+/*
+ * Procedure C: IMU data
+ * It's NOT the case when RTP streaming, but might be error.
+ * Not a valid RTP packet, handling IMU data if necessary
+ */
 char* pack_c_udp_packet(char *buffer, size_t *len) {
     struct timespec p1, p2;
     clock_gettime(CLOCK_REALTIME, &p1);
