@@ -213,6 +213,7 @@ char* pack_a_udp_packet(char *buffer, size_t *len) {
         bool is_before = is_imu_before((imu_data_t*)(buffer+offset), &previous_rtp_time);
         if (is_before) {
             num_adjust++;
+            g_rtp_stats.rtp_imu_in_img_droped++;
         } else {
             offset += sizeof(imu_data_t);
             *len   += sizeof(imu_data_t);
@@ -284,6 +285,7 @@ char* pack_b_udp_packet(char *buffer, size_t *len, bool first_rtp) {
                 imu_data_t* pimu = (imu_data_t*)(p_buffer+offset);
                 pimu->imu_sec  = 0;
                 pimu->imu_nsec = 0;
+                g_rtp_stats.rtp_imu_in_img_droped++;
             }
             offset += sizeof(imu_data_t);
             *len   += sizeof(imu_data_t);
@@ -345,6 +347,7 @@ char* pack_c_udp_packet(char *buffer, size_t *len) {
                 imu_data_t* pimu = (imu_data_t*)(p_buffer+offset);
                 pimu->imu_sec  = 0;
                 pimu->imu_nsec = 0;
+                g_rtp_stats.rtp_imu_in_img_droped++;
             }
             offset += sizeof(imu_data_t);
             *len   += sizeof(imu_data_t);

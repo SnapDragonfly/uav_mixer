@@ -22,7 +22,7 @@
  */
 #define FORWARD_MTU_LEN          4045                               //uav_mixer settings, traditional IP MTU 1500
 #define FORWARD_BUF_LEN          (FORWARD_MTU_LEN - 20 - 8)         //uav_mixer settings, 1500 - 20 - 8 = 1472
-#define FORWARD_RTP_BUF_LEN      1400                               //uav_mixer settings
+#define FORWARD_RTP_BUF_LEN      1400                               //uav_mixer settings, ssc30kq(1215), Pi3B(1400)
 
 #define FORWARD_RECV_BUF_SIZE    64                                 //uav_mixer settings, MB
 #define FORWARD_SEND_BUF_SIZE    64                                 //uav_mixer settings, MB
@@ -30,7 +30,7 @@
 #define FORWARD_RECV_BUF_LEN     (1024*1024*FORWARD_RECV_BUF_SIZE)  //1024x1024 - M
 #define FORWARD_SEND_BUF_LEN     (1024*1024*FORWARD_SEND_BUF_SIZE)  //1024x1024 - M
 
-#define FORWARD_RTP_IMU_NUM      5                                  //uav_mixer settings, RPi3B+ 10 for try
+#define FORWARD_RTP_IMU_NUM      3                                  //uav_mixer settings, RPi3B+ 10 for try
 #define FORWARD_RTP_IMG_SIZE     16                                 //sizeof(mix_head_t)
 #define FORWARD_RTP_IMU_SIZE     48                                 //sizeof(imu_data_t)
 #define FORWARD_RTP_IMU_LEN      (FORWARD_RTP_IMU_SIZE * FORWARD_RTP_IMU_NUM)     // 5x48=240 bytes
