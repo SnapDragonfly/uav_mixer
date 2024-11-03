@@ -441,7 +441,7 @@ void get_rtp_data(int local_socket, char *remote_ip, uint16_t remote_port) {
                 previous_rtp_time.tv_nsec = lastest_rtp_time.tv_nsec;
 
                 clock_gettime(CLOCK_REALTIME, &lastest_rtp_time);
-                (void)time_minus_us(&lastest_rtp_time, g_rtp_stats.rtp_max_delivery_per_frame);
+                //(void)time_minus_us(&lastest_rtp_time, g_rtp_stats.rtp_max_delivery_per_frame);
                 //(void)time_minus_us(&lastest_rtp_time, g_rtp_stats.frame_estimate_interval);
             }else{
                 //printf("body-> seq(%u) timestamp: %u\n", GET_RTP_SEQUENCE_NUMBER(buffer), GET_RTP_TIMESTAMP(buffer));
