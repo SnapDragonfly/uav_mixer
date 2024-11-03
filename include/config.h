@@ -88,6 +88,7 @@
 // Define the maximum size of the ring buffer
 #define MAX_RING_BUFFER_SIZE     50                 //uav_mixer settings
 
+// application param config
 typedef struct {
     int mavlink_freq;
     int rtp_fps;

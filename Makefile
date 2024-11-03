@@ -20,6 +20,7 @@ all: $(TARGET)
 
 # Link the object files to create the executable
 $(TARGET): $(OBJS)
+	./version.sh
 	$(CC) $(OBJS) -o $(TARGET) -lpthread -lm
 
 # Compile source files into object files

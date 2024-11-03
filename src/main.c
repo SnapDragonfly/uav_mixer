@@ -13,6 +13,7 @@
 #include "rtp_statistics.h"
 #include "time_sync.h"
 #include "ring_buffer.h"
+#include "version.h"
 
 // Global variable to track if the program should continue running
 volatile sig_atomic_t running = 1;
@@ -23,6 +24,7 @@ ring_buffer_t g_ring_buff;
 
 // Function to print help message
 void print_help() {
+    print_version();
     printf("Usage: config_parser [options]\n");
     printf("Options:\n");
     printf("  -f, --mavlink-freq <freq>        Set MAVLink frequency (default: %d)\n", MAVLINK_DEFAULT_FREQ);
@@ -98,7 +100,7 @@ void parse_args(int argc, char *argv[], uav_config *config) {
 }
 
 // Signal handler for SIGINT
-void handle_sigint(int signo) {
+void handle_sig_int_term(int signo) {
     running = 0; // Set running flag to 0
 }
 
@@ -186,7 +188,8 @@ int main(int argc, char *argv[]) {
     printf("UART_BAUDRATE: %d\n", config.uart_baudrate);
 
     // Register the signal handler for SIGINT (CTRL+C)
-    signal(SIGINT, handle_sigint);
+    signal(SIGINT, handle_sig_int_term);
+    signal(SIGTERM, handle_sig_int_term);
 
     if (FORWARD_RTP_IMU_SIZE != sizeof(imu_data_t)) {
         perror("Fatal error: imu_data_t, check hardware/gcc compatibility!\n");
@@ -245,5 +248,7 @@ int main(int argc, char *argv[]) {
     pthread_join(uart_thread, NULL);
 
     printf("UDP Forwarder and UART communication stopped.\n");
+    print_version();
+    
     return 0;
 }
