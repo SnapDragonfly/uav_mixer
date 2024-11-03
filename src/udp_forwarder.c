@@ -344,7 +344,7 @@ void get_rtp_data(int local_socket, char *remote_ip, uint16_t remote_port) {
     while (running) {
         static unsigned int packet_count = 1;
         static unsigned int packet_error = 0;
-        uint32_t len;
+        size_t len;
         struct timespec p1, p2;
 
         clock_gettime(CLOCK_REALTIME, &p1);

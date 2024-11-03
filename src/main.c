@@ -1,8 +1,10 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
 #include <pthread.h>
 #include <errno.h>
+#include <getopt.h>
 #include <sys/resource.h>
 
 #include "udp_forwarder.h"
@@ -18,6 +20,82 @@ rtp_stats_t g_rtp_stats;
 sync_time_t g_sync_time;
 mav_stats_t g_mav_stats;
 ring_buffer_t g_ring_buff;
+
+// Function to print help message
+void print_help() {
+    printf("Usage: config_parser [options]\n");
+    printf("Options:\n");
+    printf("  -f, --mavlink-freq <freq>        Set MAVLink frequency (default: %d)\n", MAVLINK_DEFAULT_FREQ);
+    printf("  -r, --rtp-fps <fps>              Set RTP frames per second (default: %d)\n", RTP_FPS_RATE);
+    printf("  -c, --rtp-clock-freq <freq>      Set RTP clock frequency in Hz (default: %d)\n", RTP_CLOCK_FREQ_HZ);
+    printf("  -p, --rtp-local-port <port>      Set RTP local port (default: %d)\n", RTP_LOCAL_PORT);
+    printf("  -i, --forward-ip <ip>            Set forward destination IP (default: %s)\n", FORWARD_IP);
+    printf("  -P, --forward-port <port>        Set forward destination port (default: %d)\n", FORWARD_PORT);
+    printf("  -d, --uart-device <device>       Set UART device (default: %s)\n", UART_DEVICE);
+    printf("  -b, --uart-baudrate <baudrate>   Set UART baud rate (default: %d)\n", UART_BAUDRATE);
+    printf("  -h, --help                       Show this help message\n");
+}
+
+void parse_args(int argc, char *argv[], uav_config *config) {
+    // Set default values
+    config->mavlink_freq = MAVLINK_DEFAULT_FREQ;
+    config->rtp_fps = RTP_FPS_RATE;
+    config->rtp_clock_freq_hz = RTP_CLOCK_FREQ_HZ;
+    config->rtp_local_port = RTP_LOCAL_PORT;
+    strncpy(config->forward_ip, FORWARD_IP, sizeof(config->forward_ip));
+    config->forward_port = FORWARD_PORT;
+    strncpy(config->uart_device, UART_DEVICE, sizeof(config->uart_device));
+    config->uart_baudrate = UART_BAUDRATE;
+
+    // Initialize option variables
+    int opt;
+    struct option long_options[] = {
+        {"mavlink-freq", required_argument, NULL, 'f'},
+        {"rtp-fps", required_argument, NULL, 'r'},
+        {"rtp-clock-freq", required_argument, NULL, 'c'},
+        {"rtp-local-port", required_argument, NULL, 'p'},
+        {"forward-ip", required_argument, NULL, 'i'},
+        {"forward-port", required_argument, NULL, 'P'},
+        {"uart-device", required_argument, NULL, 'd'},
+        {"uart-baudrate", required_argument, NULL, 'b'},
+        {"help", no_argument, NULL, 'h'},
+        {NULL, 0, NULL, 0}
+    };
+
+    // Parse command-line options
+    while ((opt = getopt_long(argc, argv, "f:r:c:p:i:P:d:b:h", long_options, NULL)) != -1) {
+        switch (opt) {
+            case 'f':
+                config->mavlink_freq = atoi(optarg);
+                break;
+            case 'r':
+                config->rtp_fps = atoi(optarg);
+                break;
+            case 'c':
+                config->rtp_clock_freq_hz = atoi(optarg);
+                break;
+            case 'p':
+                config->rtp_local_port = atoi(optarg);
+                break;
+            case 'i':
+                strncpy(config->forward_ip, optarg, sizeof(config->forward_ip));
+                break;
+            case 'P':
+                config->forward_port = atoi(optarg);
+                break;
+            case 'd':
+                strncpy(config->uart_device, optarg, sizeof(config->uart_device));
+                break;
+            case 'b':
+                config->uart_baudrate = atoi(optarg);
+                break;
+            case 'h':
+            default: // Show help message
+                print_help();
+                exit(0);
+        }
+    }
+}
 
 // Signal handler for SIGINT
 void handle_sigint(int signo) {
@@ -92,7 +170,21 @@ void* uart_imu_thread(void* arg) {
     return NULL;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+
+    uav_config config;
+    parse_args(argc, argv, &config);
+
+    // Output the parsed results
+    printf("MAVLINK_DEFAULT_FREQ: %d\n", config.mavlink_freq);
+    printf("RTP_FPS_RATE: %d\n", config.rtp_fps);
+    printf("RTP_CLOCK_FREQ_HZ: %d\n", config.rtp_clock_freq_hz);
+    printf("RTP_LOCAL_PORT: %d\n", config.rtp_local_port);
+    printf("FORWARD_IP: %s\n", config.forward_ip);
+    printf("FORWARD_PORT: %d\n", config.forward_port);
+    printf("UART_DEVICE: %s\n", config.uart_device);
+    printf("UART_BAUDRATE: %d\n", config.uart_baudrate);
+
     // Register the signal handler for SIGINT (CTRL+C)
     signal(SIGINT, handle_sigint);
 
@@ -106,15 +198,16 @@ int main() {
         return 1;
     }
 
-    (void)initialize_mavlink(&g_mav_stats, MAVLINK_DEFAULT_FREQ);  //Initialize MAVLink handler
-    (void)init_rtp_stats(&g_rtp_stats, RTP_FPS_RATE);              // Initialize RTP statistics
-    (void)init_sync_system(&g_sync_time, RTP_CLOCK_FREQ_HZ);       // Initialize with a clock frequency
+    (void)initialize_mavlink(&g_mav_stats, config.mavlink_freq);     // Initialize MAVLink handler
+    (void)init_rtp_stats(&g_rtp_stats, config.rtp_fps);              // Initialize RTP statistics
+    (void)init_sync_system(&g_sync_time, config.rtp_clock_freq_hz);  // Initialize with a clock frequency
     (void)init_rb(&g_ring_buff);
 
 
     // Initialize UDP socket
-    int local_socket = initialize_udp_socket(RTP_LOCAL_PORT);
-    printf("UDP Forwarder started. Listening on port %d and forwarding to %s:%d\n", RTP_LOCAL_PORT, FORWARD_IP, FORWARD_PORT);
+    int local_socket = initialize_udp_socket(config.rtp_local_port);
+    printf("UDP Forwarder started. Listening on port %d and forwarding to %s:%d\n", 
+            config.rtp_local_port, config.forward_ip, config.forward_port);
     
     // Create a thread for forwarding UDP packets
     pthread_t forward_thread;
@@ -125,7 +218,7 @@ int main() {
     }
 
     // Initialize UART communication
-    int uart_fd = initialize_uart(UART_DEVICE, UART_BAUDRATE);
+    int uart_fd = initialize_uart(config.uart_device, config.uart_baudrate);
     if (uart_fd == -1) {
         close(local_socket);
         return 1; // Exit if UART initialization fails
