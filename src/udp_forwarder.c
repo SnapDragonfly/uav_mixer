@@ -197,6 +197,7 @@ char* pack_a_udp_packet(char *buffer, size_t *len) {
 
     uint32_t offset;
 
+    uint32_t num_adjust = 0;
     uint32_t num = get_rb_count(&g_ring_buff);
     num = (num < RTP_FRAME_IMU_NUM)? num: RTP_FRAME_IMU_NUM;  // max buffer for imu data
 
@@ -209,8 +210,18 @@ char* pack_a_udp_packet(char *buffer, size_t *len) {
     for (int i = 0; i < num; i++) {
         (void)pop_rb(&g_ring_buff, (imu_data_t*)(buffer+offset));
 
-        offset += sizeof(imu_data_t);
-        *len   += sizeof(imu_data_t);
+        bool is_before = is_imu_before((imu_data_t*)(buffer+offset), &previous_rtp_time);
+        if (is_before) {
+            num_adjust++;
+        } else {
+            offset += sizeof(imu_data_t);
+            *len   += sizeof(imu_data_t);
+        }
+    }
+    num -= num_adjust;
+
+    if(0 == num) { //NO IMU data
+        return NULL;
     }
 
     mix_head_t* p_mixed_head = (mix_head_t*)buffer;
@@ -268,6 +279,12 @@ char* pack_b_udp_packet(char *buffer, size_t *len, bool first_rtp) {
         for (int i = 0; i < num; i++) {
             (void)pop_rb(&g_ring_buff, (imu_data_t*)(p_buffer+offset));
 
+            bool is_before = is_imu_before((imu_data_t*)(p_buffer+offset), &previous_rtp_time);
+            if (is_before) { //invalidate this outdated data
+                imu_data_t* pimu = (imu_data_t*)(p_buffer+offset);
+                pimu->imu_sec  = 0;
+                pimu->imu_nsec = 0;
+            }
             offset += sizeof(imu_data_t);
             *len   += sizeof(imu_data_t);
         }
@@ -323,6 +340,12 @@ char* pack_c_udp_packet(char *buffer, size_t *len) {
         for (int i = 0; i < num; i++) {
             (void)pop_rb(&g_ring_buff, (imu_data_t*)(p_buffer+offset));
 
+            bool is_before = is_imu_before((imu_data_t*)(p_buffer+offset), &previous_rtp_time);
+            if (is_before) { //invalidate this outdated data
+                imu_data_t* pimu = (imu_data_t*)(p_buffer+offset);
+                pimu->imu_sec  = 0;
+                pimu->imu_nsec = 0;
+            }
             offset += sizeof(imu_data_t);
             *len   += sizeof(imu_data_t);
         }

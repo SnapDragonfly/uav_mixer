@@ -31,7 +31,8 @@ struct timespec* estimate_time(sync_time_t *sys, struct timespec* estimated_time
 
 mix_timestamp_t* get_sync_cli(sync_time_t *sys, mix_timestamp_t *mix_cal);
 
-bool is_before(struct timespec* estimated_time, struct timespec* current_time);
+bool is_time_before(struct timespec* estimated_time, struct timespec* current_time);
+bool is_imu_before(imu_data_t* imu, struct timespec* current_time);
 
 // Function to calculate the count based on the current system time
 uint32_t calculate_timestamp(sync_time_t *sys);

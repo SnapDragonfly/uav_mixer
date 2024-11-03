@@ -151,7 +151,7 @@ void calculate_time_difference(struct timespec *start, struct timespec *end, str
     }
 }
 
-bool is_before(struct timespec* estimated_time, struct timespec* current_time) {
+bool is_time_before(struct timespec* estimated_time, struct timespec* current_time) {
     // Compare seconds first
     if (estimated_time->tv_sec < current_time->tv_sec) {
         return true;
@@ -161,6 +161,22 @@ bool is_before(struct timespec* estimated_time, struct timespec* current_time) {
 
     // If seconds are equal, compare nanoseconds
     if (estimated_time->tv_nsec < current_time->tv_nsec) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool is_imu_before(imu_data_t* imu, struct timespec* current_time){
+    // Compare seconds first
+    if (imu->imu_sec < current_time->tv_sec) {
+        return true;
+    } else if (imu->imu_sec > current_time->tv_sec) {
+        return false;
+    }
+
+    // If seconds are equal, compare nanoseconds
+    if (imu->imu_nsec < current_time->tv_nsec) {
         return true;
     } else {
         return false;

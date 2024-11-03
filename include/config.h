@@ -30,11 +30,11 @@
 #define FORWARD_RECV_BUF_LEN     (1024*1024*FORWARD_RECV_BUF_SIZE)  //1024x1024 - M
 #define FORWARD_SEND_BUF_LEN     (1024*1024*FORWARD_SEND_BUF_SIZE)  //1024x1024 - M
 
-#define FORWARD_RTP_IMU_NUM      1                                  //uav_mixer settings, RPi3B+ 10 for try , 25x48=1200 bytes
+#define FORWARD_RTP_IMU_NUM      5                                  //uav_mixer settings, RPi3B+ 10 for try
 #define FORWARD_RTP_IMG_SIZE     16                                 //sizeof(mix_head_t)
 #define FORWARD_RTP_IMU_SIZE     48                                 //sizeof(imu_data_t)
-#define FORWARD_RTP_IMU_LEN      (FORWARD_RTP_IMU_SIZE * FORWARD_RTP_IMU_NUM)
-#define FORWARD_RTP_MIX_LEN      (FORWARD_RTP_IMG_SIZE + FORWARD_RTP_IMU_LEN)
+#define FORWARD_RTP_IMU_LEN      (FORWARD_RTP_IMU_SIZE * FORWARD_RTP_IMU_NUM)     // 5x48=240 bytes
+#define FORWARD_RTP_MIX_LEN      (FORWARD_RTP_IMG_SIZE + FORWARD_RTP_IMU_LEN)     // 240+16=256 bytes
 
 #if FORWARD_BUF_LEN - FORWARD_RTP_MIX_LEN < FORWARD_RTP_BUF_LEN
     #error "Need enough buffer size for RTP image buffer."
