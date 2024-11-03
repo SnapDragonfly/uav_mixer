@@ -20,7 +20,6 @@ all: $(TARGET)
 
 # Link the object files to create the executable
 $(TARGET): $(OBJS)
-	./version.sh
 	$(CC) $(OBJS) -o $(TARGET) -lpthread -lm
 
 # Compile source files into object files
@@ -29,6 +28,7 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
 
 # Create the object file directory
 $(OBJDIR):
+	./version.sh
 	mkdir -p $(OBJDIR)
 
 # Clean up generated files
