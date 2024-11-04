@@ -169,6 +169,10 @@ void calculate_time_difference(struct timespec *start, struct timespec *end, str
 }
 
 bool is_time_before(struct timespec* estimated_time, struct timespec* current_time) {
+
+    printf("Base time - sec: %ld, nsec: %ld\n", current_time->tv_sec, current_time->tv_nsec);
+    printf("Comp time - sec: %ld, nsec: %ld\n", estimated_time->tv_sec, estimated_time->tv_nsec);
+
     // Compare seconds first
     if (estimated_time->tv_sec < current_time->tv_sec) {
         return true;
@@ -185,6 +189,10 @@ bool is_time_before(struct timespec* estimated_time, struct timespec* current_ti
 }
 
 bool is_imu_before(imu_data_t* imu, struct timespec* current_time){
+
+    //printf("Base time - sec: %ld, nsec: %ld\n", current_time->tv_sec, current_time->tv_nsec);
+    //printf("Comp time - sec: %d, nsec: %d\n", imu->imu_sec, imu->imu_nsec);
+
     // Compare seconds first
     if (imu->imu_sec < current_time->tv_sec) {
         return true;

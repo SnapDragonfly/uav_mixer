@@ -19,6 +19,7 @@ extern volatile sig_atomic_t running;
 extern rtp_stats_t g_rtp_stats;
 extern sync_time_t g_sync_time;
 extern ring_buffer_t g_ring_buff;
+extern uav_config_t g_uav_config;
 
 struct timespec lastest_rtp_time = {
     .tv_sec = 0,
@@ -82,7 +83,7 @@ int initialize_udp_socket(uint16_t port) {
     // Set receive timeout for the socket
     struct timeval timeout;
     timeout.tv_sec  = RTP_LOCAL_TO_SEC;
-    timeout.tv_usec = RTP_LOCAL_TO_USEC;
+    timeout.tv_usec = g_uav_config.rtp_local_timeout;
     if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
         perror("Failed to set socket timeout");
         close(sockfd);
@@ -221,10 +222,9 @@ char* pack_a_udp_packet(char *buffer, size_t *len) {
     for (int i = 0; i < num; i++) {
         (void)pop_rb(&g_ring_buff, (imu_data_t*)(buffer+offset));
 
-        bool is_before = is_imu_before((imu_data_t*)(buffer+offset), &previous_rtp_time);
+        bool is_before = is_imu_before((imu_data_t*)(buffer+offset), &previous_img_time);
         if (is_before) {
             num_adjust++;
-            g_rtp_stats.rtp_imu_in_img_droped++;
         } else {
             offset += sizeof(imu_data_t);
             *len   += sizeof(imu_data_t);
@@ -291,12 +291,14 @@ char* pack_b_udp_packet(char *buffer, size_t *len, bool first_rtp) {
         for (int i = 0; i < num; i++) {
             (void)pop_rb(&g_ring_buff, (imu_data_t*)(p_buffer+offset));
 
-            bool is_before = is_imu_before((imu_data_t*)(p_buffer+offset), &previous_rtp_time);
+            bool is_before = is_imu_before((imu_data_t*)(p_buffer+offset), &previous_img_time);
             if (is_before) { //invalidate this outdated data
                 imu_data_t* pimu = (imu_data_t*)(p_buffer+offset);
                 pimu->imu_sec  = 0;
                 pimu->imu_nsec = 0;
                 g_rtp_stats.rtp_imu_in_img_droped++;
+            } else {
+                g_rtp_stats.rtp_imu_in_img_transfered++;
             }
             offset += sizeof(imu_data_t);
             *len   += sizeof(imu_data_t);
@@ -353,12 +355,11 @@ char* pack_c_udp_packet(char *buffer, size_t *len) {
         for (int i = 0; i < num; i++) {
             (void)pop_rb(&g_ring_buff, (imu_data_t*)(p_buffer+offset));
 
-            bool is_before = is_imu_before((imu_data_t*)(p_buffer+offset), &previous_rtp_time);
+            bool is_before = is_imu_before((imu_data_t*)(p_buffer+offset), &previous_img_time);
             if (is_before) { //invalidate this outdated data
                 imu_data_t* pimu = (imu_data_t*)(p_buffer+offset);
                 pimu->imu_sec  = 0;
                 pimu->imu_nsec = 0;
-                g_rtp_stats.rtp_imu_in_img_droped++;
             }
             offset += sizeof(imu_data_t);
             *len   += sizeof(imu_data_t);
@@ -394,7 +395,7 @@ void get_rtp_data(int local_socket, char *remote_ip, uint16_t remote_port) {
         FD_SET(local_socket, &fds);
 
         tv.tv_sec  = RTP_LOCAL_TO_SEC;
-        tv.tv_usec = RTP_LOCAL_TO_USEC;
+        tv.tv_usec = g_uav_config.rtp_local_timeout;
 
         ssize_t recv_len;
         retval = select(local_socket + 1, &fds, NULL, NULL, &tv);

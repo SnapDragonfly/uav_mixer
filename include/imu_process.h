@@ -16,6 +16,7 @@ typedef struct {
     uint8_t  sysid;             // System ID for MAVLink communication
     int      stage;             // Stage or state
     int64_t  time_offset_us;    // Time offset in microseconds
+    int64_t  time_to_live;      // Time offset in microseconds
     bool     no_hr_imu;         // Flag for missing high-resolution IMU data
     bool     no_att_q;          // Flag for missing attitude quaternion data
     float    latest_alt;        // Latest altitude value

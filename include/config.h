@@ -71,6 +71,10 @@
 #define UART_TO_SEC              1                  //uav_mixer settings
 #define UART_TO_USEC             0                  //uav_mixer settings
 
+// UART Sync
+#define MAVLINK_SYNC_DOWN_THRESHOLD   -3000         //uav_mixer settings (3000us)
+#define MAVLINK_SYNC_UP_THRESHOLD      3000         //uav_mixer settings (3000us)
+
 #define MAVLINK_DEFAULT_COMP_ID  191                //uav_mixer settings
 #define MAVLINK_DEFAULT_FREQ     100                //uav_mixer settings
 
@@ -88,11 +92,12 @@ typedef struct {
     int rtp_fps;
     int rtp_clock_freq_hz;
     int rtp_local_port;
+    int rtp_local_timeout;
     char forward_ip[16];
     int forward_port;
     char uart_device[20];
     int uart_baudrate;
-} uav_config;
+} uav_config_t;
 
 #ifdef __GNUC__
 #define UNUSED(x) (void)(x)

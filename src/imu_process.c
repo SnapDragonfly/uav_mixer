@@ -49,13 +49,16 @@ void mavlink_heartbeat(mav_stats_t *stats, mavlink_message_t* msg, mavlink_statu
 
     if (0 == stats->time_offset_us) {
         gettimeofday(&tv, NULL);
-        mavlink_msg_timesync_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, tv.tv_sec*1000000+tv.tv_usec, stats->sysid, 1); //fill timesync with us instead of ns
+        int64_t sync_us = (int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
+        mavlink_msg_timesync_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, sync_us, stats->sysid, 1); //fill timesync with us instead of ns
         len = mavlink_msg_to_send_buffer(&buffer[0], msg);
         write(uart_fd, buffer, len);
 
+#if 0
         mavlink_msg_system_time_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, tv.tv_sec*1000000+tv.tv_usec, 0);
         len = mavlink_msg_to_send_buffer(&buffer[0], msg);
         write(uart_fd, buffer, len);
+#endif
 
         /*
          * Set test spot origin at(TEST_SPOT_LATITUDE, TEST_SPOT_LOGITUDE, TEST_SPOT_ALTITUDE)
@@ -71,7 +74,7 @@ void mavlink_heartbeat(mav_stats_t *stats, mavlink_message_t* msg, mavlink_statu
         //len = mavlink_msg_to_send_buffer(&buffer[0], msg);
         //write(uart_fd, buffer, len);
 
-        printf("sync... time_offset_us\n");
+        printf("cc1 sync... %ld %ld %lld\n", tv.tv_sec, tv.tv_usec, sync_us);
     }
 
     if (stats->no_hr_imu) {
@@ -117,12 +120,28 @@ void mavlink_heartbeat(mav_stats_t *stats, mavlink_message_t* msg, mavlink_statu
 }
 
 void mavlink_timesync(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
+    int len;
+    unsigned char buffer[UART_BUF_LEN];
+
     mavlink_timesync_t ts;
     mavlink_msg_timesync_decode(msg, &ts);
     if (ts.tc1 != 0) {
-        stats->time_offset_us = ts.ts1 - ts.tc1;
-        printf("sync time_offset_us = %lld\n", stats->time_offset_us);
-    }
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        int64_t current_us = (int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
+
+        stats->time_to_live = (current_us - ts.ts1)/2; // half TTL(Time To Live)
+
+        if ( stats->time_to_live < MAVLINK_SYNC_DOWN_THRESHOLD || stats->time_to_live > MAVLINK_SYNC_UP_THRESHOLD){
+            mavlink_msg_timesync_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, current_us, stats->sysid, 1); //fill timesync with us instead of ns
+            len = mavlink_msg_to_send_buffer(&buffer[0], msg);
+            write(uart_fd, buffer, len);
+            printf("cc2 sync(%lld)... %ld %ld %lld\n", stats->time_to_live, tv.tv_sec, tv.tv_usec, current_us);
+        } else {
+            stats->time_offset_us = ts.ts1 - ts.tc1;
+            printf("cc0 sync(%lld)... %ld %ld %lld %lld, time_offset=%lld\n", stats->time_to_live, tv.tv_sec, tv.tv_usec, ts.ts1, ts.tc1, stats->time_offset_us);
+        }  
+    } 
 }
 
 void mavlink_statustext(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
@@ -140,16 +159,18 @@ void mavlink_highres_imu(mav_stats_t *stats, mavlink_message_t* msg, mavlink_sta
     // assign data
     if (!is_rtp_packet_interrupted(&g_rtp_stats)) {
         imu_data_t pushed_data;
-#if 1 
+#if 1
         struct timespec tv;
         clock_gettime(CLOCK_REALTIME, &tv);
-        //(void)time_minus_us(&tv, stats->time_offset_us);  // minus round trip time
+        (void)time_minus_us(&tv, stats->time_to_live);  // minus round trip time
         pushed_data.imu_sec   = tv.tv_sec;
         pushed_data.imu_nsec  = tv.tv_nsec;
 #else 
         int64_t ts_us = hr_imu.time_usec + stats->time_offset_us;
         pushed_data.imu_sec   = ts_us / 1000000;           // Timestamp seconds
         pushed_data.imu_nsec  = (ts_us % 1000000) * 1000;  // Timestamp nanoseconds
+
+        //printf("hr_imu %d %d, %lld\n", pushed_data.imu_sec, pushed_data.imu_nsec, hr_imu.time_usec);
 #endif
 
         pushed_data.xacc      = hr_imu.xacc;               // Linear acceleration X

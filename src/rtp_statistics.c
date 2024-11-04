@@ -208,6 +208,7 @@ void init_rtp_stats(rtp_stats_t *stats, int fps) {
 
     stats->rtp_imu_plus_img_count                = 0;
     stats->rtp_imu_in_img_droped                 = 0;
+    stats->rtp_imu_in_img_transfered             = 0;
     stats->rtp_max_imu_plus_img_per_frame        = 0;
     stats->rtp_min_imu_plus_img_per_frame        = UINT16_MAX;
 
@@ -533,6 +534,7 @@ void print_rtp_stats(const rtp_stats_t *stats) {
 
     printf("Total IMU+IMG RTP packets: %u\n", stats->rtp_imu_plus_img_count);
     printf(" Total IMU in RTP dropped: %u\n", stats->rtp_imu_in_img_droped);
+    printf("Total IMU in RTP transfer: %u\n", stats->rtp_imu_in_img_transfered);
     printf(" Max IMU+IMG packet count: %u\n", stats->rtp_max_imu_plus_img_per_frame);
     printf(" Min IMU+IMG packet count: %u\n", stats->rtp_min_imu_plus_img_per_frame);
 

@@ -59,6 +59,7 @@ typedef struct {
 
     uint32_t rtp_imu_plus_img_count;
     uint32_t rtp_imu_in_img_droped;
+    uint32_t rtp_imu_in_img_transfered;
     uint16_t rtp_max_imu_plus_img_per_frame;
     uint16_t rtp_min_imu_plus_img_per_frame;
 
