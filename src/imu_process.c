@@ -21,6 +21,8 @@ int initialize_mavlink(mav_stats_t *stats, float freq) {
     stats->no_att_q        = true;
 
     stats->time_offset_us  = 0;
+    stats->ttl_offset      = 0;
+    stats->ttl_min         = INT64_MAX;
 
     stats->latest_alt      = 0;
     stats->gnd_alt         = 0;
@@ -77,14 +79,14 @@ void mavlink_heartbeat(mav_stats_t *stats, mavlink_message_t* msg, mavlink_statu
         printf("cc1 sync... %ld %ld %lld\n", tv.tv_sec, tv.tv_usec, sync_us);
     }
 
-    if (stats->no_hr_imu) {
+    if (stats->no_hr_imu && 0 != stats->time_offset_us) {
         mavlink_msg_command_long_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, 0, MAV_CMD_SET_MESSAGE_INTERVAL, 0, MAVLINK_MSG_ID_HIGHRES_IMU, stats->update_interval, 0, 0, 0, 0, 0);
         len = mavlink_msg_to_send_buffer(&buffer[0], msg);
         write(uart_fd, buffer, len);
         //printf("HIGHRES_IMU set interval %0.2fus\n", stats->update_interval);
     }
 
-    if (stats->no_att_q) {
+    if (stats->no_att_q && 0 != stats->time_offset_us) {
         mavlink_msg_command_long_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, 0, MAV_CMD_SET_MESSAGE_INTERVAL, 0, MAVLINK_MSG_ID_ATTITUDE_QUATERNION, stats->update_interval, 0, 0, 0, 0, 0);
         len = mavlink_msg_to_send_buffer(&buffer[0], msg);
         write(uart_fd, buffer, len);
@@ -128,18 +130,36 @@ void mavlink_timesync(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status
     if (ts.tc1 != 0) {
         struct timeval tv;
         gettimeofday(&tv, NULL);
+
+        static int ttl_cnt = 0;
+
+        if (ttl_cnt > MAVLINK_SYNC_COUNT) {
+            return;
+        }
+
+        ttl_cnt++;
         int64_t current_us = (int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
+        int64_t ttl = (current_us - ts.ts1)/2; // half TTL(Time To Live)
 
-        stats->time_to_live = (current_us - ts.ts1)/2; // half TTL(Time To Live)
+        if (ttl < stats->ttl_min) {
+            stats->ttl_min = ttl;
+            stats->ttl_offset = ts.ts1 - ts.tc1;
+        }
 
-        if ( stats->time_to_live < MAVLINK_SYNC_DOWN_THRESHOLD || stats->time_to_live > MAVLINK_SYNC_UP_THRESHOLD){
-            mavlink_msg_timesync_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, current_us, stats->sysid, 1); //fill timesync with us instead of ns
-            len = mavlink_msg_to_send_buffer(&buffer[0], msg);
-            write(uart_fd, buffer, len);
-            printf("cc2 sync(%lld)... %ld %ld %lld\n", stats->time_to_live, tv.tv_sec, tv.tv_usec, current_us);
+        if ( stats->ttl_min < MAVLINK_SYNC_DOWN_THRESHOLD || stats->ttl_min > MAVLINK_SYNC_UP_THRESHOLD){
+
+            if (ttl_cnt < MAVLINK_SYNC_COUNT) {
+                mavlink_msg_timesync_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, current_us, stats->sysid, 1); //fill timesync with us instead of ns
+                len = mavlink_msg_to_send_buffer(&buffer[0], msg);
+                write(uart_fd, buffer, len);
+                printf("cc2(%d) sync(%lld)... %ld %ld %lld\n", ttl_cnt, stats->ttl_min, tv.tv_sec, tv.tv_usec, current_us);
+            } else {
+                stats->time_offset_us = stats->ttl_offset;
+                printf("cc3 sync(%lld)... %ld %ld %lld %lld, time_offset=%lld\n", stats->ttl_min, tv.tv_sec, tv.tv_usec, ts.ts1, ts.tc1, stats->time_offset_us);
+            }
         } else {
-            stats->time_offset_us = ts.ts1 - ts.tc1;
-            printf("cc0 sync(%lld)... %ld %ld %lld %lld, time_offset=%lld\n", stats->time_to_live, tv.tv_sec, tv.tv_usec, ts.ts1, ts.tc1, stats->time_offset_us);
+            stats->time_offset_us = stats->ttl_offset;
+            printf("cc0 sync(%lld)... %ld %ld %lld %lld, time_offset=%lld\n", stats->ttl_min, tv.tv_sec, tv.tv_usec, ts.ts1, ts.tc1, stats->time_offset_us);
         }  
     } 
 }
@@ -162,7 +182,7 @@ void mavlink_highres_imu(mav_stats_t *stats, mavlink_message_t* msg, mavlink_sta
 #if 1
         struct timespec tv;
         clock_gettime(CLOCK_REALTIME, &tv);
-        (void)time_minus_us(&tv, stats->time_to_live);  // minus round trip time
+        (void)time_minus_us(&tv, stats->ttl_min);  // minus round trip time
         pushed_data.imu_sec   = tv.tv_sec;
         pushed_data.imu_nsec  = tv.tv_nsec;
 #else 
