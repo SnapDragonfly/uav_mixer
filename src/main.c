@@ -203,7 +203,7 @@ int main(int argc, char *argv[]) {
 
     (void)initialize_mavlink(&g_mav_stats, config.mavlink_freq);     // Initialize MAVLink handler
     (void)init_rtp_stats(&g_rtp_stats, config.rtp_fps);              // Initialize RTP statistics
-    (void)init_sync_system(&g_sync_time, config.rtp_clock_freq_hz);  // Initialize with a clock frequency
+    (void)init_sync_system(&g_sync_time, config.rtp_clock_freq_hz, config.rtp_fps);  // Initialize with a clock frequency
     (void)init_rb(&g_ring_buff);
 
 

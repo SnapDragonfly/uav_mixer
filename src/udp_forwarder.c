@@ -28,7 +28,18 @@ struct timespec previous_rtp_time = {
     .tv_sec = 0,
     .tv_nsec = 0
 };
+
+struct timespec lastest_img_time = {
+    .tv_sec = 0,
+    .tv_nsec = 0
+};
+struct timespec previous_img_time = {
+    .tv_sec = 0,
+    .tv_nsec = 0
+};
+
 int64_t previous_rtp_seqence_id = 0;
+int64_t previous_rtp_timestamp  = 0;
 
 
 #define TIMING_STATUS(A, B)  ((A <= B)?"OK":"NG")
@@ -263,11 +274,11 @@ char* pack_b_udp_packet(char *buffer, size_t *len, bool first_rtp) {
         mix_head_t* p_mixed_head = (mix_head_t*)p_buffer;
         p_mixed_head->timestamp.img_timestamp  = GET_RTP_TIMESTAMP(buffer);
         if (first_rtp) {
-            p_mixed_head->timestamp.img_sec        = previous_rtp_time.tv_sec;
-            p_mixed_head->timestamp.img_nsec       = previous_rtp_time.tv_nsec; 
+            p_mixed_head->timestamp.img_sec        = previous_img_time.tv_sec;
+            p_mixed_head->timestamp.img_nsec       = previous_img_time.tv_nsec; 
         } else {
-            p_mixed_head->timestamp.img_sec        = lastest_rtp_time.tv_sec;
-            p_mixed_head->timestamp.img_nsec       = lastest_rtp_time.tv_nsec; 
+            p_mixed_head->timestamp.img_sec        = lastest_img_time.tv_sec;
+            p_mixed_head->timestamp.img_nsec       = lastest_img_time.tv_nsec; 
         }
 
         p_mixed_head->imu_num  = num;
@@ -298,11 +309,11 @@ char* pack_b_udp_packet(char *buffer, size_t *len, bool first_rtp) {
         mix_head_t* p_mixed_head = (mix_head_t*)p_buffer;
         p_mixed_head->timestamp.img_timestamp  = GET_RTP_TIMESTAMP(buffer);
         if (first_rtp) {
-            p_mixed_head->timestamp.img_sec        = previous_rtp_time.tv_sec;
-            p_mixed_head->timestamp.img_nsec       = previous_rtp_time.tv_nsec; 
+            p_mixed_head->timestamp.img_sec        = previous_img_time.tv_sec;
+            p_mixed_head->timestamp.img_nsec       = previous_img_time.tv_nsec; 
         } else {
-            p_mixed_head->timestamp.img_sec        = lastest_rtp_time.tv_sec;
-            p_mixed_head->timestamp.img_nsec       = lastest_rtp_time.tv_nsec; 
+            p_mixed_head->timestamp.img_sec        = lastest_img_time.tv_sec;
+            p_mixed_head->timestamp.img_nsec       = lastest_img_time.tv_nsec; 
         }
     }
     update_rtp_imu_plus_img_stats(&g_rtp_stats, num);
@@ -440,35 +451,51 @@ void get_rtp_data(int local_socket, char *remote_ip, uint16_t remote_port) {
             bool is_packet_lost;
             bool is_first_rtp = is_first_packet_of_frame(GET_RTP_SEQUENCE_NUMBER(buffer), GET_RTP_MARKER(buffer), &is_packet_lost);
             if(is_first_rtp && GET_RTP_SEQUENCE_NUMBER(buffer) > previous_rtp_seqence_id){
-                update_rtp_head_stats(&g_rtp_stats);
-                /*
-                 * RTP video timestamp sync
-                 */
-                unsigned int calculated_timestamp = calculate_timestamp(&g_sync_time);
-                int64_t delta_timestamp = (int64_t)(calculated_timestamp*1.0 - (int64_t)GET_RTP_TIMESTAMP(buffer));
-                //printf("%lld %u %u\n", delta_timestamp, calculated_timestamp, GET_RTP_TIMESTAMP(buffer));
-
-                if ( (0 == calculated_timestamp) 
-                     || (delta_timestamp < 0 
-                     && g_rtp_stats.rtp_packets_count_per_frame < g_rtp_stats.rtp_packets_safe_threshold)){
-                    packet_error++;
-                    synchronize_time(&g_sync_time, GET_RTP_TIMESTAMP(buffer));
-                    printf("s");
-                    fflush(stdout);
-
-                    //printf("\033[1;31m%u sync(%u) delta(%lld) clock(%f)\033[0m\n", 
-                    //        GET_RTP_SEQUENCE_NUMBER(buffer), GET_RTP_TIMESTAMP(buffer), delta_timestamp, g_sync_time.clock_hz);
-                } else {
-                    //printf("%u mon %u vs %u --> delta %lld\n", GET_RTP_SEQUENCE_NUMBER(buffer), GET_RTP_TIMESTAMP(buffer), (uint32_t)calculated_timestamp, delta_timestamp);
-                }
-
                 // update time
                 previous_rtp_time.tv_sec  = lastest_rtp_time.tv_sec;
                 previous_rtp_time.tv_nsec = lastest_rtp_time.tv_nsec;
 
+                previous_img_time.tv_sec  = lastest_img_time.tv_sec;
+                previous_img_time.tv_nsec = lastest_img_time.tv_nsec;
+
                 clock_gettime(CLOCK_REALTIME, &lastest_rtp_time);
+                (void)estimate_time(&g_sync_time, &lastest_img_time, GET_RTP_TIMESTAMP(buffer));
+                //(void)time_minus_us(&lastest_rtp_time, g_rtp_stats.rtp_latest_delivery_per_frame);
                 //(void)time_minus_us(&lastest_rtp_time, g_rtp_stats.rtp_max_delivery_per_frame);
                 //(void)time_minus_us(&lastest_rtp_time, g_rtp_stats.frame_estimate_interval);
+
+                update_rtp_head_stats(&g_rtp_stats);
+                /*
+                 * RTP video timestamp sync
+                 */
+                printf("s");
+                fflush(stdout);
+                unsigned int calculated_timestamp = calculate_timestamp(&g_sync_time, &lastest_rtp_time);
+                if (0 == calculated_timestamp) {
+                    packet_error++;
+                    synchronize_time_ex(&g_sync_time, GET_RTP_TIMESTAMP(buffer), &lastest_rtp_time);
+                } else {
+                    static bool first_rtp_accurate_time_sync = true;
+                    int64_t delta_timestamp = (int64_t)(calculated_timestamp*1.0 - (int64_t)GET_RTP_TIMESTAMP(buffer));
+
+                    if (first_rtp_accurate_time_sync) {
+                        first_rtp_accurate_time_sync = false;
+                        synchronize_time_ex(&g_sync_time, previous_rtp_timestamp, &previous_rtp_time);
+                        //printf("%lld %u %u\n", delta_timestamp, calculated_timestamp, GET_RTP_TIMESTAMP(buffer));
+                    } else {
+                        //printf("%lld %u %u\n", delta_timestamp, calculated_timestamp, GET_RTP_TIMESTAMP(buffer));
+                        if (is_stamp_in_threshold(&g_sync_time, delta_timestamp)){
+                            //printf("%u mon %u vs %u --> delta %lld\n", 
+                            //        GET_RTP_SEQUENCE_NUMBER(buffer), GET_RTP_TIMESTAMP(buffer), (uint32_t)calculated_timestamp, delta_timestamp);
+                        } else {
+                            packet_error++;
+                            synchronize_time_ex(&g_sync_time, (int64_t)GET_RTP_TIMESTAMP(buffer), &lastest_rtp_time);
+                            //inc_sync_clock(&g_sync_time);
+                            //printf("\033[1;31m%u sync(%u) delta(%lld) clock(%f)\033[0m\n", 
+                            //        GET_RTP_SEQUENCE_NUMBER(buffer), GET_RTP_TIMESTAMP(buffer), delta_timestamp, g_sync_time.clock_hz);
+                        }
+                    }
+                }
             }else{
                 //printf("body-> seq(%u) timestamp: %u\n", GET_RTP_SEQUENCE_NUMBER(buffer), GET_RTP_TIMESTAMP(buffer));
                 update_rtp_body_stats(&g_rtp_stats); 
@@ -478,6 +505,7 @@ void get_rtp_data(int local_socket, char *remote_ip, uint16_t remote_port) {
 
             packet_count++;
             previous_rtp_seqence_id = GET_RTP_SEQUENCE_NUMBER(buffer);
+            previous_rtp_timestamp  = GET_RTP_TIMESTAMP(buffer);
 
             /*
             * Procedure B: IMU + IMG data

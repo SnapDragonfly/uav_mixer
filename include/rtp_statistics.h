@@ -81,6 +81,8 @@ typedef struct {
 
     double   rtp_max_delivery_per_frame;
     double   rtp_min_delivery_per_frame;
+    double   rtp_latest_delivery_per_frame;
+    double   rtp_packet_delivery[MAX_RTP_PACKETS + 1];
     double   rtp_max_gap_per_frame;
     double   rtp_min_gap_per_frame;
     double   frame_max_interval;

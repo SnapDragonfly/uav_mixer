@@ -60,6 +60,37 @@ void print_rtp_packet_histogram(const rtp_stats_t *stats) {
     printf("    RMS RTP packets: %.2f\n", rms_packets);
 }
 
+void print_packets_delivery_histogram(const rtp_stats_t *stats) {
+    uint32_t last_bucket = 0;
+    uint32_t delivery_scale_factor = 1;
+
+    // Calculate the maximum occurrence (used to scale the number of stars) and the last non-zero bucket
+    for (int k = 0; k <= MAX_RTP_PACKETS; k++) {
+        if (stats->rtp_packet_delivery[k] > 0) {
+            last_bucket = k;
+        }
+    }
+
+    if (stats->rtp_max_delivery_per_frame > SCALE_FACTOR) {
+        delivery_scale_factor = stats->rtp_max_delivery_per_frame / SCALE_FACTOR;
+    } else {
+        delivery_scale_factor = 1;
+    }
+
+    // Print packet delivery histogram
+    printf("Frame Packet Delivery Histogram\n");
+    printf("Max frame delivery time: %e us\n", stats->rtp_max_delivery_per_frame);
+    printf("Min frame delivery time: %e us\n", stats->rtp_min_delivery_per_frame);
+    for (int i = 0; i <= last_bucket; i++) {
+        printf("%03d Packet Delivery: %.0f | ", i, stats->rtp_packet_delivery[i]);
+        
+        for (int j = 0; j < stats->rtp_packet_delivery[i] / delivery_scale_factor; j++) {
+            printf("*");
+        }
+        printf("\n");
+    }
+}
+
 // Calculate the standard deviation and average for the FPS histogram
 void print_fps_histogram(const rtp_stats_t *stats) {
     uint32_t fps_scale_factor = 1;
@@ -133,6 +164,10 @@ void init_rtp_stats(rtp_stats_t *stats, int fps) {
 
     for (int i = 0; i <= MAX_RTP_PACKETS; i++) {
         stats->packet_distribution[i] = 0;
+    }
+
+    for (int i = 0; i <= MAX_RTP_PACKETS; i++) {
+        stats->rtp_packet_delivery[i] = 0;
     }
 
     for (int i = 0; i <= MAX_FRAME_PER_SECOND; i++) {
@@ -370,28 +405,34 @@ void update_rtp_head_stats(rtp_stats_t *stats){
     gettimeofday(&current_time, NULL);
 
     if(0 != stats->rtp_last_time_of_begin_frame.tv_sec && 0 != stats->rtp_last_time_of_begin_frame.tv_usec){
-        double delivery_diff = (stats->rtp_last_time_of_end_frame.tv_sec - stats->rtp_last_time_of_begin_frame.tv_sec) * 1000000.0 
+        stats->rtp_latest_delivery_per_frame = (stats->rtp_last_time_of_end_frame.tv_sec - stats->rtp_last_time_of_begin_frame.tv_sec) * 1000000.0 
                              + (stats->rtp_last_time_of_end_frame.tv_usec - stats->rtp_last_time_of_begin_frame.tv_usec);
         double gap_diff      = (current_time.tv_sec - stats->rtp_last_time_of_end_frame.tv_sec) * 1000000.0 
                              + (current_time.tv_usec - stats->rtp_last_time_of_end_frame.tv_usec);
         double interval_diff = (current_time.tv_sec - stats->rtp_last_time_of_begin_frame.tv_sec) * 1000000.0 
                              + (current_time.tv_usec - stats->rtp_last_time_of_begin_frame.tv_usec);
 
-        //printf("delivery_diff: %e  gap_diff: %e\n", delivery_diff, gap_diff);
-        //printf("interval_diff: %e  -  %.02e Hz\n", interval_diff, 1000000/interval_diff);
+        //printf("delivery_diff: %e  gap_diff: %e\n", stats->rtp_latest_delivery_per_frame, gap_diff);
+        //printf("interval_diff: %e  -  %.02e Hz\n", stats->rtp_latest_delivery_per_frame, 1000000/stats->rtp_latest_delivery_per_frame);
         if (interval_diff > stats->frame_estimate_interval){
             stats->frame_data_delay_count++;
-            //printf("frame data severely delayed: %e > %e\n", interval_diff, stats->frame_estimate_interval);
+            //printf("frame data severely delayed: %e > %e\n", stats->rtp_latest_delivery_per_frame, stats->frame_estimate_interval);
         } else {
             stats->frame_data_ontime_count++;
         }
 
-        if (delivery_diff > stats->rtp_max_delivery_per_frame){
-            stats->rtp_max_delivery_per_frame = delivery_diff;
+        if (0 == stats->rtp_packet_delivery[stats->rtp_packets_count_per_frame]) {
+            stats->rtp_packet_delivery[stats->rtp_packets_count_per_frame] = stats->rtp_latest_delivery_per_frame;
+        } else {
+            stats->rtp_packet_delivery[stats->rtp_packets_count_per_frame] = (stats->rtp_latest_delivery_per_frame + stats->rtp_packet_delivery[stats->rtp_packets_count_per_frame]) /2;
         }
 
-        if(delivery_diff < stats->rtp_min_delivery_per_frame){
-            stats->rtp_min_delivery_per_frame = delivery_diff;
+        if (stats->rtp_latest_delivery_per_frame > stats->rtp_max_delivery_per_frame){
+            stats->rtp_max_delivery_per_frame = stats->rtp_latest_delivery_per_frame;
+        }
+
+        if(stats->rtp_latest_delivery_per_frame < stats->rtp_min_delivery_per_frame){
+            stats->rtp_min_delivery_per_frame = stats->rtp_latest_delivery_per_frame;
         }
 
         if(stats->rtp_packets_count_per_frame > stats->rtp_max_packets_per_frame){
@@ -453,8 +494,8 @@ void print_rtp_stats(const rtp_stats_t *stats) {
     uint32_t frame_total = stats->frame_data_ontime_count+stats->frame_data_delay_count;
     printf("\n");
     printf("-- Summary ---------------\n");
-    printf("Max frame delivery time: %e us\n", stats->rtp_max_delivery_per_frame);
-    printf("Min frame delivery time: %e us\n", stats->rtp_min_delivery_per_frame);
+    print_packets_delivery_histogram(stats);
+    printf("--------------------------\n");
     printf("     Max frame gap time: %e us\n", stats->rtp_max_gap_per_frame);
     printf("     Min frame gap time: %e us\n", stats->rtp_min_gap_per_frame);
     printf("Max frame interval time: %e us -  %.02e Hz\n", stats->frame_max_interval, 1000000/stats->frame_max_interval);

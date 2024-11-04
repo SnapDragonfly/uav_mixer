@@ -15,16 +15,20 @@ typedef struct {
     double sync_counts[MAX_TIME_SYNC_SAMPLES];         // Counts for sync points
     int sync_index;                          // Index for the circular buffer
     int sample_count;                        // Count of samples added
+    int32_t stamp_up;
+    int32_t stamp_down;
 } sync_time_t;
 
 // Function to initialize the SyncSystem
-void init_sync_system(sync_time_t *sys, double clock_hz);
+void init_sync_system(sync_time_t *sys, double clock_hz, int fps);
 
+bool is_stamp_in_threshold(sync_time_t *sys, int64_t delta);
 void inc_sync_clock(sync_time_t *sys);
 void dec_sync_clock(sync_time_t *sys);
 
 // Function to synchronize time with the given count
 void synchronize_time(sync_time_t *sys, double count);
+void synchronize_time_ex(sync_time_t *sys, double count, struct timespec* estimated_time);
 
 // Function to estimate system time based on count and clock frequency
 struct timespec* estimate_time(sync_time_t *sys, struct timespec* estimated_time, double count);
@@ -35,7 +39,7 @@ bool is_time_before(struct timespec* estimated_time, struct timespec* current_ti
 bool is_imu_before(imu_data_t* imu, struct timespec* current_time);
 
 // Function to calculate the count based on the current system time
-uint32_t calculate_timestamp(sync_time_t *sys);
+uint32_t calculate_timestamp(sync_time_t *sys, struct timespec* current_time);
 
 void calculate_time_difference(struct timespec *start, struct timespec *end, struct timespec *diff);
 

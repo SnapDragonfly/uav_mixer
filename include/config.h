@@ -48,17 +48,11 @@
 #define SCALE_FACTOR             50                 //uav_mixer settings
 
 // RTP Time Sync default configuration
-#define RTP_CLOCK_FREQ_HZ        90000              //uav_mixer settings, ~10us
+#define RTP_CLOCK_FREQ_HZ        90000              //uav_mixer settings, 90000 ~ 90KHz
 #define RTP_CLOCK_INC_UNIT_HZ    10                 //uav_mixer settings
 #define RTP_CLOCK_DEC_UNIT_HZ    5                  //uav_mixer settings
 
-#define RTP_CLOCK_CTR_MIN_DELAY  500                // 100*~10us = 1ms
-#define RTP_CLOCK_CTR_MAX_DELAY  1500               // 1000*~10us = 10ms
-#define RTP_CLOCK_CTR_THRESHOLD  2000               //uav_mixer settings
-
-#if RTP_CLOCK_CTR_THRESHOLD < RTP_CLOCK_CTR_MAX_DELAY
-    #error "RTP_CLOCK_CTR_THRESHOLD must be greater than RTP_CLOCK_CTR_MAX_DELAY"
-#endif
+#define RTP_STAMP_THRESHOLD      10                  //uav_mixer settings, 10%
 
 #define MAX_TIME_SYNC_SAMPLES    10                 //uav_mixer settings
 

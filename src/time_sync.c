@@ -6,7 +6,7 @@
 #include "time_sync.h"
 
 // Function to initialize the SyncSystem
-void init_sync_system(sync_time_t *sys, double clock_hz) {
+void init_sync_system(sync_time_t *sys, double clock_hz, int fps) {
     sys->count = 0;
     sys->clock_hz = clock_hz;
     sys->sync_index = 0;
@@ -16,6 +16,15 @@ void init_sync_system(sync_time_t *sys, double clock_hz) {
         sys->sync_times[i].tv_nsec = 0;
         sys->sync_counts[i] = 0;
     }
+    sys->stamp_up   = 1 * 1000000 / fps * sys->clock_hz * (100+RTP_STAMP_THRESHOLD) / 100;
+    sys->stamp_down = - sys->stamp_up;
+}
+
+bool is_stamp_in_threshold(sync_time_t *sys, int64_t delta){
+    if (delta < sys->stamp_down || delta > sys->stamp_up) {
+        return false;
+    }
+    return true;
 }
 
 // Function to increase sync clock to reduce err of SyncSystem
@@ -37,6 +46,18 @@ void synchronize_time(sync_time_t *sys, double count) {
 
     // Store the system time and count in the circular buffer
     sys->sync_times[sys->sync_index] = current_time;
+    sys->sync_counts[sys->sync_index] = count;
+    
+    sys->sync_index = (sys->sync_index + 1) % MAX_TIME_SYNC_SAMPLES;
+    if (sys->sample_count < MAX_TIME_SYNC_SAMPLES) {
+        sys->sample_count++;
+    }
+}
+
+void synchronize_time_ex(sync_time_t *sys, double count, struct timespec* estimated_time){
+
+    // Store the system time and count in the circular buffer
+    sys->sync_times[sys->sync_index] = *estimated_time;
     sys->sync_counts[sys->sync_index] = count;
     
     sys->sync_index = (sys->sync_index + 1) % MAX_TIME_SYNC_SAMPLES;
@@ -110,7 +131,7 @@ mix_timestamp_t* get_sync_cli(sync_time_t *sys, mix_timestamp_t *mix_cal){
 }
 
 // Function to calculate the count based on the current system time
-uint32_t calculate_timestamp(sync_time_t *sys) {
+uint32_t calculate_timestamp(sync_time_t *sys, struct timespec* current_time) {
     if (sys->sample_count == 0) {
         return 0; // No sync data available, return 0 for unsigned int
     }
@@ -120,13 +141,9 @@ uint32_t calculate_timestamp(sync_time_t *sys) {
     struct timespec sync_time = sys->sync_times[recent_index];
     double sync_count = sys->sync_counts[recent_index];
 
-    // Get the current system time
-    struct timespec current_time;
-    clock_gettime(CLOCK_REALTIME, &current_time);
-
     // Calculate time difference (in microseconds) between the current time and sync_time
-    double time_diff = (current_time.tv_sec - sync_time.tv_sec) * 1000000.0 + 
-                       (current_time.tv_nsec - sync_time.tv_nsec) / 1000.0;
+    double time_diff = (current_time->tv_sec - sync_time.tv_sec) * 1000000.0 + 
+                       (current_time->tv_nsec - sync_time.tv_nsec) / 1000.0;
 
     // Convert time difference back to count difference using the clock frequency (convert from µs to clock cycles)
     double count_diff = (time_diff / 1000000.0) * sys->clock_hz;
