@@ -49,7 +49,7 @@ void mavlink_heartbeat(mav_stats_t *stats, mavlink_message_t* msg, mavlink_statu
         printf("found MAV %d\n", msg->sysid);
     }
 
-    if (0 == stats->time_offset_us) {
+    if (0 == stats->time_offset_us && 0 != stats->sysid) {
         gettimeofday(&tv, NULL);
         int64_t sync_us = (int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
         mavlink_msg_timesync_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, sync_us, stats->sysid, 1); //fill timesync with us instead of ns
