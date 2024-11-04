@@ -133,7 +133,7 @@ void mavlink_timesync(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status
 
         static int ttl_cnt = 0;
 
-        if (ttl_cnt > MAVLINK_SYNC_COUNT) {
+        if (ttl_cnt >= MAVLINK_SYNC_COUNT) {
             return;
         }
 
