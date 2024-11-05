@@ -7,6 +7,7 @@ PIDFILE="/var/run/uav_mixer.pid"
 
 case "$1" in
     start)
+	sleep 3
         echo "Starting imu&img mixer service..."
 	uav_mixer -f 100 -r 30 -d /dev/ttyS2 > /dev/null 2>&1 &
         #uav_mixer -f 100 -r 30 -d /dev/ttyS2 > "$LOGFILE" 2>&1 &
@@ -49,7 +50,7 @@ case "$1" in
 	;;
 
     *)
-        echo "Usage: $0 {start|stop}"
+        echo "Usage: $0 {start|stop|restart|status}"
         exit 1
         ;;
 esac
