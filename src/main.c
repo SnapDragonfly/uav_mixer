@@ -117,14 +117,13 @@ void* udp_forward_thread(void* arg) {
     int policy;
     struct sched_param param;
 
-#if 0
     // Set the thread's scheduling policy and priority
-    param.sched_priority = 90;  // Set the priority
+    param.sched_priority = 50;  // Set a higher priority (range is typically 1-99)
     if (pthread_setschedparam(thread, SCHED_FIFO, &param) != 0) {
         perror("Failed to set thread scheduling parameters");
         return NULL;
     }
-#endif
+
     // Get the current thread's scheduling policy and priority
     if (pthread_getschedparam(thread, &policy, &param) != 0) {
         perror("Failed to get thread scheduling parameters");
