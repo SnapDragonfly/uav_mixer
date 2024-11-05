@@ -190,6 +190,8 @@ bool is_time_before(struct timespec* estimated_time, struct timespec* current_ti
 
 bool is_imu_before(imu_data_t* imu, struct timespec* current_time){
 
+    return false; // disable this check
+
     //printf("Base time - sec: %ld, nsec: %ld\n", current_time->tv_sec, current_time->tv_nsec);
     //printf("Comp time - sec: %d, nsec: %d\n", imu->imu_sec, imu->imu_nsec);
 
