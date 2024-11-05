@@ -16,7 +16,7 @@ typedef struct {
     uint8_t  sysid;             // System ID for MAVLink communication
     int      stage;             // Stage or state
 
-    int64_t  time_offset_us;    // Time offset in microseconds
+    int64_t  time_offset_ns;    // Time offset in microseconds
     int64_t  ttl_offset;        // ttl min offset
     int64_t  ttl_min;           // ttl min
 

@@ -20,7 +20,7 @@ int initialize_mavlink(mav_stats_t *stats, float freq) {
     stats->no_hr_imu       = true;
     stats->no_att_q        = true;
 
-    stats->time_offset_us  = 0;
+    stats->time_offset_ns  = 0;
     stats->ttl_offset      = 0;
     stats->ttl_min         = INT64_MAX;
 
@@ -39,7 +39,7 @@ int initialize_mavlink(mav_stats_t *stats, float freq) {
 void mavlink_heartbeat(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status_t* status, int uart_fd) {
     int len;
     unsigned char buffer[UART_BUF_LEN];
-    struct timeval tv;
+    struct timespec tv;
 
     mavlink_heartbeat_t hb;
     mavlink_msg_heartbeat_decode(msg, &hb);
@@ -49,10 +49,10 @@ void mavlink_heartbeat(mav_stats_t *stats, mavlink_message_t* msg, mavlink_statu
         printf("found MAV %d\n", msg->sysid);
     }
 
-    if (0 == stats->time_offset_us && 0 != stats->sysid) {
-        gettimeofday(&tv, NULL);
-        int64_t sync_us = (int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
-        mavlink_msg_timesync_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, sync_us, stats->sysid, 1); //fill timesync with us instead of ns
+    if (0 == stats->time_offset_ns && 0 != stats->sysid) {
+        clock_gettime(CLOCK_REALTIME, &tv);
+        int64_t sync_ns = (int64_t)tv.tv_sec * 1000000000 + tv.tv_nsec;
+        mavlink_msg_timesync_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, sync_ns, stats->sysid, 1); //fill timesync with us instead of ns
         len = mavlink_msg_to_send_buffer(&buffer[0], msg);
         write(uart_fd, buffer, len);
 
@@ -76,17 +76,17 @@ void mavlink_heartbeat(mav_stats_t *stats, mavlink_message_t* msg, mavlink_statu
         //len = mavlink_msg_to_send_buffer(&buffer[0], msg);
         //write(uart_fd, buffer, len);
 
-        printf("cc1 sync... %ld %ld %lld\n", tv.tv_sec, tv.tv_usec, sync_us);
+        printf("cc1 sync... %ld %ld %lld\n", tv.tv_sec, tv.tv_nsec, sync_ns);
     }
 
-    if (stats->no_hr_imu && 0 != stats->time_offset_us) {
+    if (stats->no_hr_imu && 0 != stats->time_offset_ns) {
         mavlink_msg_command_long_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, 0, MAV_CMD_SET_MESSAGE_INTERVAL, 0, MAVLINK_MSG_ID_HIGHRES_IMU, stats->update_interval, 0, 0, 0, 0, 0);
         len = mavlink_msg_to_send_buffer(&buffer[0], msg);
         write(uart_fd, buffer, len);
         //printf("HIGHRES_IMU set interval %0.2fus\n", stats->update_interval);
     }
 
-    if (stats->no_att_q && 0 != stats->time_offset_us) {
+    if (stats->no_att_q && 0 != stats->time_offset_ns) {
         mavlink_msg_command_long_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, 0, MAV_CMD_SET_MESSAGE_INTERVAL, 0, MAVLINK_MSG_ID_ATTITUDE_QUATERNION, stats->update_interval, 0, 0, 0, 0, 0);
         len = mavlink_msg_to_send_buffer(&buffer[0], msg);
         write(uart_fd, buffer, len);
@@ -96,7 +96,6 @@ void mavlink_heartbeat(mav_stats_t *stats, mavlink_message_t* msg, mavlink_statu
     if (hb.custom_mode == COPTER_MODE_GUIDED) {
         if (stats->stage == 0) {
             stats->stage = 1;
-            gettimeofday(&tv, NULL);
 
             /*
              * Takeoff command when guided mode
@@ -128,8 +127,8 @@ void mavlink_timesync(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status
     mavlink_timesync_t ts;
     mavlink_msg_timesync_decode(msg, &ts);
     if (ts.tc1 != 0) {
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
+        struct timespec tv;
+        clock_gettime(CLOCK_REALTIME, &tv);
 
         static int ttl_cnt = 0;
 
@@ -138,8 +137,14 @@ void mavlink_timesync(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status
         }
 
         ttl_cnt++;
-        int64_t current_us = (int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
-        int64_t ttl = (current_us - ts.ts1)/2; // half TTL(Time To Live)
+        int64_t current_ns = (int64_t)tv.tv_sec * 1000000000 + tv.tv_nsec;
+        int64_t ttl = (current_ns - ts.ts1)/2; // half TTL(Time To Live)
+
+        if (0 == stats->time_offset_ns) {
+            stats->time_offset_ns = ts.ts1 - ts.tc1;
+        } else {
+            stats->time_offset_ns = (stats->time_offset_ns + ts.ts1 - ts.tc1)/2;
+        }
 
         if (ttl < stats->ttl_min) {
             stats->ttl_min = ttl;
@@ -149,17 +154,18 @@ void mavlink_timesync(mav_stats_t *stats, mavlink_message_t* msg, mavlink_status
         if ( stats->ttl_min < MAVLINK_SYNC_DOWN_THRESHOLD || stats->ttl_min > MAVLINK_SYNC_UP_THRESHOLD){
 
             if (ttl_cnt < MAVLINK_SYNC_COUNT) {
-                mavlink_msg_timesync_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, current_us, stats->sysid, 1); //fill timesync with us instead of ns
+                mavlink_msg_timesync_pack(stats->sysid, MAVLINK_DEFAULT_COMP_ID, msg, 0, current_ns, stats->sysid, 1); //fill timesync with us instead of ns
                 len = mavlink_msg_to_send_buffer(&buffer[0], msg);
                 write(uart_fd, buffer, len);
-                printf("cc2(%d) sync(%lld)... %ld %ld %lld\n", ttl_cnt, stats->ttl_min, tv.tv_sec, tv.tv_usec, current_us);
+                printf("cc2(%d) sync(%lld)... %ld %ld %lld %lld %lld\n", ttl_cnt, 
+                        stats->ttl_min, tv.tv_sec, tv.tv_nsec, ts.ts1, ts.tc1, current_ns);
             } else {
-                stats->time_offset_us = stats->ttl_offset;
-                printf("cc3 sync(%lld)... %ld %ld %lld %lld, time_offset=%lld\n", stats->ttl_min, tv.tv_sec, tv.tv_usec, ts.ts1, ts.tc1, stats->time_offset_us);
+                printf("cc3(%d) sync(%lld)... %ld %ld %lld %lld, time_offset=%lld\n", ttl_cnt, 
+                        stats->ttl_min, tv.tv_sec, tv.tv_nsec, ts.ts1, ts.tc1, stats->time_offset_ns);
             }
         } else {
-            stats->time_offset_us = stats->ttl_offset;
-            printf("cc0 sync(%lld)... %ld %ld %lld %lld, time_offset=%lld\n", stats->ttl_min, tv.tv_sec, tv.tv_usec, ts.ts1, ts.tc1, stats->time_offset_us);
+            printf("cc0(%d) sync(%lld)... %ld %ld %lld %lld, time_offset=%lld\n", ttl_cnt, 
+                    stats->ttl_min, tv.tv_sec, tv.tv_nsec, ts.ts1, ts.tc1, stats->time_offset_ns);
         }  
     } 
 }
@@ -179,18 +185,21 @@ void mavlink_highres_imu(mav_stats_t *stats, mavlink_message_t* msg, mavlink_sta
     // assign data
     if (!is_rtp_packet_interrupted(&g_rtp_stats)) {
         imu_data_t pushed_data;
-#if 1
+#if 0
         struct timespec tv;
         clock_gettime(CLOCK_REALTIME, &tv);
         (void)time_minus_us(&tv, stats->ttl_min);  // minus round trip time
         pushed_data.imu_sec   = tv.tv_sec;
         pushed_data.imu_nsec  = tv.tv_nsec;
 #else 
-        int64_t ts_us = hr_imu.time_usec + stats->time_offset_us;
-        pushed_data.imu_sec   = ts_us / 1000000;           // Timestamp seconds
-        pushed_data.imu_nsec  = (ts_us % 1000000) * 1000;  // Timestamp nanoseconds
+        int64_t ts_ns = hr_imu.time_usec*1000 + stats->time_offset_ns;
+        pushed_data.imu_sec   = ts_ns / 1000000000;  // Timestamp seconds
+        pushed_data.imu_nsec  = ts_ns % 1000000000;  // Timestamp nanoseconds
 
-        //printf("hr_imu %d %d, %lld\n", pushed_data.imu_sec, pushed_data.imu_nsec, hr_imu.time_usec);
+        //struct timespec tv;
+        //clock_gettime(CLOCK_REALTIME, &tv);
+        //printf("tv %ld %ld\n", tv.tv_sec, tv.tv_nsec);
+        //printf("hr_imu %d %d, %lld %lld\n", pushed_data.imu_sec, pushed_data.imu_nsec, hr_imu.time_usec, stats->time_offset_ns);
 #endif
 
         pushed_data.xacc      = hr_imu.xacc;               // Linear acceleration X
@@ -219,7 +228,7 @@ void mavlink_highres_imu(mav_stats_t *stats, mavlink_message_t* msg, mavlink_sta
     printf("Temperature: %.2f °C\n", hr_imu.temperature);
 #endif
 
-    if (stats->time_offset_us != 0 && hr_imu.time_usec > stats->last_us) {
+    if (stats->time_offset_ns != 0 && hr_imu.time_usec > stats->last_us) {
         static int64_t effective_counts = 0;
         static int effective_rate       = 10;
         effective_counts++;
