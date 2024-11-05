@@ -74,8 +74,8 @@
 // UART Sync
 #define MAVLINK_SYNC_DOWN_THRESHOLD   -500          //uav_mixer settings (us)
 #define MAVLINK_SYNC_UP_THRESHOLD      500          //uav_mixer settings (us)
-#define MAVLINK_SYNC_COUNT             10           //uav_mixer settings
-#define MAVLINK_RESET_COUNT            20          //uav_mixer settings
+#define MAVLINK_SYNC_COUNT             5            //uav_mixer settings
+#define MAVLINK_FIRST_SYNC_COUNT       10           //uav_mixer settings
 
 #define MAVLINK_DEFAULT_COMP_ID  191                //uav_mixer settings
 #define MAVLINK_DEFAULT_FREQ     100                //uav_mixer settings

@@ -20,7 +20,7 @@ typedef struct {
     int64_t  ttl_offset;        // ttl min offset
     int64_t  ttl_min;           // ttl min
     int      ttl_cnt;           // ttl count
-    int      reset_cnt;         // reset count
+    int      syn_cnt;           // sync count
 
     bool     no_hr_imu;         // Flag for missing high-resolution IMU data
     bool     no_att_q;          // Flag for missing attitude quaternion data
